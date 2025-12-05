@@ -1,0 +1,438 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #4f46e5;
+  --color-primary-light: #6366f1;
+  --color-primary-dark: #4338ca;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+
+  --font-sans: 'Inter', 'system-ui', 'sans-serif';
+
+  --shadow-neomorph: 8px 8px 16px rgba(0,0,0,0.1), -8px -8px 16px rgba(255,255,255,0.8);
+  --shadow-neomorph-inset: inset 4px 4px 8px rgba(0,0,0,0.1), inset -4px -4px 8px rgba(255,255,255,0.8);
+  --shadow-neomorph-dark: 8px 8px 16px rgba(0,0,0,0.4), -8px -8px 16px rgba(255,255,255,0.05);
+}
+
+@keyframes flip {
+  0% { transform: rotateY(0deg); }
+  100% { transform: rotateY(180deg); }
+}
+
+@keyframes fadeIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes slideUp {
+  0% {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(79, 70, 229, 0.5); }
+  50% { box-shadow: 0 0 40px rgba(79, 70, 229, 0.8); }
+}
+
+@layer utilities {
+  .animate-flip {
+    animation: flip 0.6s ease-in-out;
+  }
+  .animate-pulse-slow {
+    animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  .animate-bounce-slow {
+    animation: bounce 2s infinite;
+  }
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-in;
+  }
+  .animate-slide-up {
+    animation: slideUp 0.4s ease-out;
+  }
+  .animate-glow {
+    animation: glow 2s ease-in-out infinite;
+  }
+}
+
+/* ============================================
+   5. СИСТЕМА ТЕМ - CSS ЗМІННІ
+   ============================================ */
+
+/* СВІТЛА ТЕМА (за замовчуванням) */
+:root {
+  /* Фони */
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f1f5f9;
+  --bg-card: #ffffff;
+  --bg-hover: #f1f5f9;
+  --bg-active: #e2e8f0;
+
+  /* Тексти */
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-tertiary: #64748b;
+  --text-inverse: #ffffff;
+
+  /* Бордери */
+  --border-color: #e2e8f0;
+  --border-hover: #cbd5e1;
+  --border-focus: #4f46e5;
+
+  /* Тіні */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+
+  /* Акценти */
+  --accent-primary: #4f46e5;
+  --accent-success: #10b981;
+  --accent-warning: #f59e0b;
+  --accent-danger: #ef4444;
+
+  /* Градієнти */
+  --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --gradient-card: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+
+  /* Спеціальні */
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.3);
+  --overlay-bg: rgba(0, 0, 0, 0.5);
+}
+
+/* ТЕМНА ТЕМА */
+.dark {
+  /* Фони - глибокі темні відтінки */
+  --bg-primary: #0a0e1a;
+  --bg-secondary: #151b2e;
+  --bg-tertiary: #1f2937;
+  --bg-card: #1a1f2e;
+  --bg-hover: #242b3d;
+  --bg-active: #2d3548;
+
+  /* Тексти - яскравіші для кращої видимості */
+  --text-primary: #ffffff;
+  --text-secondary: #e0e7ff;
+  --text-tertiary: #c7d2fe;
+  --text-inverse: #0a0e1a;
+
+  /* Бордери - помітні в темряві */
+  --border-color: #334155;
+  --border-hover: #475569;
+  --border-focus: #818cf8;
+
+  /* Тіні - темніші і глибші */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.6);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.7);
+
+  /* Акценти - яскравіші для темної теми */
+  --accent-primary: #818cf8;
+  --accent-success: #34d399;
+  --accent-warning: #fbbf24;
+  --accent-danger: #f87171;
+
+  /* Градієнти */
+  --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --gradient-card: linear-gradient(145deg, #1e293b 0%, #334155 100%);
+
+  /* Спеціальні */
+  --glass-bg: rgba(30, 41, 59, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --overlay-bg: rgba(0, 0, 0, 0.7);
+}
+
+/* ⚡ ВИСОКОКОНТРАСТНА ТЕМА (для людей з вадами зору) */
+.high-contrast {
+  /* Максимальний контраст: чорне на білому */
+  --bg-primary: #000000;
+  --bg-secondary: #1a1a1a;
+  --bg-tertiary: #2d2d2d;
+  --bg-card: #000000;
+  --bg-hover: #2d2d2d;
+  --bg-active: #404040;
+
+  /* Тексти - максимально контрастні */
+  --text-primary: #ffffff;
+  --text-secondary: #ffff00;
+  --text-tertiary: #00ff00;
+  --text-inverse: #000000;
+
+  /* Бордери - яскраві білі */
+  --border-color: #ffffff;
+  --border-hover: #ffff00;
+  --border-focus: #00ff00;
+
+  /* Тіні - дуже виразні */
+  --shadow-sm: 0 0 8px rgba(255, 255, 255, 0.3);
+  --shadow-md: 0 0 16px rgba(255, 255, 255, 0.4);
+  --shadow-lg: 0 0 24px rgba(255, 255, 255, 0.5);
+  --shadow-xl: 0 0 32px rgba(255, 255, 255, 0.6);
+
+  /* Акценти - максимально яскраві */
+  --accent-primary: #00ff00;
+  --accent-success: #00ff00;
+  --accent-warning: #ffff00;
+  --accent-danger: #ff0000;
+
+  /* Градієнти - контрастні */
+  --gradient-primary: linear-gradient(135deg, #00ff00 0%, #00ffff 100%);
+  --gradient-card: linear-gradient(145deg, #000000 0%, #1a1a1a 100%);
+
+  /* Спеціальні */
+  --glass-bg: rgba(0, 0, 0, 0.9);
+  --glass-border: rgba(255, 255, 255, 0.5);
+  --overlay-bg: rgba(0, 0, 0, 0.9);
+}
+
+/* 🌊 МОРСЬКА ТЕМА (додаткова) */
+.ocean {
+  /* Морські відтінки */
+  --bg-primary: #0a192f;
+  --bg-secondary: #112240;
+  --bg-tertiary: #1d3557;
+  --bg-card: #112240;
+  --bg-hover: #1d3557;
+  --bg-active: #2d4a6f;
+
+  /* Тексти - бірюзові відтінки */
+  --text-primary: #ccd6f6;
+  --text-secondary: #8892b0;
+  --text-tertiary: #64748b;
+  --text-inverse: #0a192f;
+
+  /* Бордери */
+  --border-color: #233554;
+  --border-hover: #2d4a6f;
+  --border-focus: #64ffda;
+
+  /* Тіні */
+  --shadow-sm: 0 1px 2px 0 rgba(100, 255, 218, 0.1);
+  --shadow-md: 0 4px 6px -1px rgba(100, 255, 218, 0.2);
+  --shadow-lg: 0 10px 15px -3px rgba(100, 255, 218, 0.25);
+  --shadow-xl: 0 20px 25px -5px rgba(100, 255, 218, 0.3);
+
+  /* Акценти - морська палітра */
+  --accent-primary: #64ffda;
+  --accent-success: #57d9a3;
+  --accent-warning: #ffc86b;
+  --accent-danger: #ff6b9d;
+
+  /* Градієнти */
+  --gradient-primary: linear-gradient(135deg, #667eea 0%, #64ffda 100%);
+  --gradient-card: linear-gradient(145deg, #112240 0%, #1d3557 100%);
+
+  /* Спеціальні */
+  --glass-bg: rgba(17, 34, 64, 0.7);
+  --glass-border: rgba(100, 255, 218, 0.2);
+  --overlay-bg: rgba(10, 25, 47, 0.8);
+}
+
+/* ============================================
+   6. ГЛОБАЛЬНІ СТИЛІ
+   ============================================ */
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+  color 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Перехідні ефекти для всіх елементів при зміні теми */
+* {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-duration: 0.3s;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#root {
+  min-height: 100vh;
+  width: 100%;
+}
+
+/* ============================================
+   7. ACCESSIBILITY
+   ============================================ */
+
+/* Focus indicators - адаптивні під теми */
+*:focus-visible {
+  outline: 3px solid var(--border-focus);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.high-contrast *:focus-visible {
+  outline-width: 4px;
+  outline-offset: 4px;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* ============================================
+   8. CUSTOM SCROLLBAR - адаптивний
+   ============================================ */
+
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 10px;
+  border: 2px solid var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-primary);
+}
+
+.high-contrast ::-webkit-scrollbar-thumb {
+  background: var(--text-secondary);
+  border: 2px solid var(--bg-primary);
+}
+
+/* ============================================
+   9. СПЕЦІАЛЬНІ КЛАСИ ДЛЯ ТЕМ
+   ============================================ */
+
+/* Адаптивні картки */
+.theme-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-md);
+}
+
+.theme-card:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-hover);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Адаптивні кнопки */
+.theme-button {
+  background: var(--accent-primary);
+  color: var(--text-inverse);
+  border: 2px solid var(--accent-primary);
+}
+
+.theme-button:hover {
+  opacity: 0.9;
+  box-shadow: var(--shadow-md);
+}
+
+.high-contrast .theme-button {
+  border-width: 3px;
+  font-weight: bold;
+}
+
+/* Glass morphism ефект */
+.glass-effect {
+  background: var(--glass-bg);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border);
+}
+
+.high-contrast .glass-effect {
+  backdrop-filter: none;
+  background: var(--bg-card);
+  border: 2px solid var(--border-color);
+}
+
+/* ============================================
+   10. RESPONSIVE TOUCH TARGETS
+   ============================================ */
+
+@media (hover: none) and (pointer: coarse) {
+  button,
+  a,
+  .clickable {
+    min-height: 48px;
+    min-width: 48px;
+  }
+
+  .high-contrast button,
+  .high-contrast a {
+    min-height: 56px;
+    min-width: 56px;
+  }
+}
+
+/* ============================================
+   11. FONT SIZE ACCESSIBILITY
+   ============================================ */
+
+.text-size-small { font-size: 0.875rem; line-height: 1.5; }
+.text-size-normal { font-size: 1rem; line-height: 1.6; }
+.text-size-large { font-size: 1.125rem; line-height: 1.7; }
+.text-size-xlarge { font-size: 1.25rem; line-height: 1.8; }
+
+.high-contrast .text-size-small { font-size: 1rem; }
+.high-contrast .text-size-normal { font-size: 1.125rem; }
+.high-contrast .text-size-large { font-size: 1.25rem; }
+.high-contrast .text-size-xlarge { font-size: 1.5rem; }
+
+/* ============================================
+   12. REDUCED MOTION
+   ============================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ============================================
+   13. PRINT STYLES
+   ============================================ */
+
+@media print {
+  * {
+    background: white !important;
+    color: black !important;
+    box-shadow: none !important;
+  }
+}
+
+/* ============================================
+   14. ДОДАТКОВІ УТИЛІТИ ДЛЯ TAILWIND
+   ============================================ */
+
+/* Тематичні утиліти */
+.bg-theme-primary { background-color: var(--bg-primary); }
+.bg-theme-secondary { background-color: var(--bg-secondary); }
+.bg-theme-card { background-color: var(--bg-card); }
+.text-theme-primary { color: var(--text-primary); }
+.text-theme-secondary { color: var(--text-secondary); }
+.border-theme { border-color: var(--border-color); }
+.shadow-theme-md { box-shadow: var(--shadow-md); }
+.shadow-theme-lg { box-shadow: var(--shadow-lg); }
+.bg-theme-tertiary { background-color: var(--bg-tertiary); }
+.text-theme-tertiary { color: var(--text-tertiary); }
