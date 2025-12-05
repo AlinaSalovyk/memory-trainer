@@ -1,6 +1,3 @@
-// E:\final\memory-trainer\src\games\SimonSays\SimonSays.jsx
-// SimonSays.jsx - Гра "Повтори послідовність кольорів"
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/layout/Layout';
@@ -9,6 +6,7 @@ import Button from '../../components/ui/Button';
 import Modal from '../../components/ui/Modal';
 import useGameState from '../../hooks/useGameState';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useProfile } from '../../contexts/ProfileContext';
 import storageService from '../../services/storageService';
 
 const COLORS = [
@@ -28,8 +26,8 @@ const PHASES = {
 function SimonSays() {
     const navigate = useNavigate();
     const { accessibility } = useTheme();
-    const gameState = useGameState('simon-says');
-
+    const gameState = useGameState('simonSays');
+    const { refreshAll } = useProfile();
     const [gameStarted, setGameStarted] = useState(false);
     const [phase, setPhase] = useState(PHASES.READY);
     const [sequence, setSequence] = useState([]);
@@ -41,7 +39,6 @@ function SimonSays() {
 
     const audioContextRef = useRef(null);
 
-    // Ініціалізація AudioContext
     useEffect(() => {
         if (accessibility.soundEnabled) {
             audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
@@ -53,7 +50,6 @@ function SimonSays() {
         };
     }, [accessibility.soundEnabled]);
 
-    // Відтворення звуку
     const playSound = (frequency) => {
         if (!accessibility.soundEnabled || !audioContextRef.current) return;
 
@@ -73,7 +69,6 @@ function SimonSays() {
         oscillator.stop(audioContextRef.current.currentTime + 0.3);
     };
 
-    // Початок гри
     const handleStartGame = () => {
         setGameStarted(true);
         gameState.startGame();
@@ -83,7 +78,6 @@ function SimonSays() {
         startNewRound([]);
     };
 
-    // Новий раунд
     const startNewRound = (currentSequence) => {
         const newColor = Math.floor(Math.random() * 4);
         const newSequence = [...currentSequence, newColor];
@@ -91,42 +85,39 @@ function SimonSays() {
         setPlayerSequence([]);
         setPhase(PHASES.SHOWING);
         setIsPlayingSequence(true);
-        playSequence(newSequence);
+        setTimeout(() => playSequence(newSequence), 500);
     };
 
-    // Показ послідовності
     const playSequence = async (seq) => {
+        const speed = Math.max(200, 600 - seq.length * 20);
+
         for (let i = 0; i < seq.length; i++) {
-            await new Promise(resolve => setTimeout(resolve, 400));
             setActiveColor(seq[i]);
             playSound(COLORS[seq[i]].sound);
-            await new Promise(resolve => setTimeout(resolve, 400));
+            await new Promise(resolve => setTimeout(resolve, speed));
             setActiveColor(null);
+            await new Promise(resolve => setTimeout(resolve, speed / 2));
         }
         setIsPlayingSequence(false);
         setPhase(PHASES.PLAYER_TURN);
     };
 
-    // Клік гравця
     const handleColorClick = (colorId) => {
         if (phase !== PHASES.PLAYER_TURN || isPlayingSequence) return;
 
         setActiveColor(colorId);
         playSound(COLORS[colorId].sound);
-        setTimeout(() => setActiveColor(null), 300);
+        setTimeout(() => setActiveColor(null), 200);
 
         const newPlayerSequence = [...playerSequence, colorId];
         setPlayerSequence(newPlayerSequence);
 
-        // Перевірка правильності
         if (newPlayerSequence[newPlayerSequence.length - 1] !== sequence[newPlayerSequence.length - 1]) {
-            // Помилка
             setTimeout(() => {
                 setPhase(PHASES.GAME_OVER);
                 finishGame();
             }, 500);
         } else if (newPlayerSequence.length === sequence.length) {
-            // Правильно, наступний рівень
             setTimeout(() => {
                 setLevel(level + 1);
                 startNewRound(sequence);
@@ -134,24 +125,26 @@ function SimonSays() {
         }
     };
 
-    // Завершення гри
     const finishGame = () => {
         const longestSequence = sequence.length;
-
-        const results = gameState.finishGame({
-            longestSequence,
-            level
-        });
-
-        // Оновлення рекордів
         const currentRecords = storageService.getRecords();
+        let isNewRecord = false;
+
         if (!currentRecords.simonSays.longestSequence ||
             longestSequence > currentRecords.simonSays.longestSequence) {
             storageService.updateRecord('simonSays', null, {
                 longestSequence
             });
+            isNewRecord = true;
         }
 
+        gameState.finishGame({
+            longestSequence,
+            bestLongestSequence: isNewRecord ? longestSequence : (currentRecords.simonSays.longestSequence || longestSequence),
+            level
+        });
+
+        refreshAll();
         setShowResults(true);
     };
 
@@ -236,31 +229,34 @@ function SimonSays() {
 
                 {/* Game Board */}
                 <Card padding="lg">
-                    <div className="grid grid-cols-2 gap-4 mb-6">
+                    <div className="grid grid-cols-2 gap-4 mb-6 max-w-md mx-auto">
                         {COLORS.map((color) => (
                             <button
                                 key={color.id}
-                                onClick={() => handleColorClick(color.id)}
+                                onPointerDown={(e) => { e.preventDefault(); handleColorClick(color.id); }}
                                 disabled={phase !== PHASES.PLAYER_TURN || isPlayingSequence}
                                 className={`
-                  aspect-square rounded-2xl font-bold text-2xl
-                  transition-all duration-200 transform
-                  ${phase === PHASES.PLAYER_TURN && !isPlayingSequence
-                                    ? 'hover:scale-105 cursor-pointer'
+                                  aspect-square rounded-2xl font-bold text-2xl
+                                  transition-all duration-100 transform
+                                  ${phase === PHASES.PLAYER_TURN && !isPlayingSequence
+                                    ? 'hover:scale-105 cursor-pointer active:scale-95'
                                     : 'cursor-not-allowed opacity-75'}
-                  ${activeColor === color.id
-                                    ? 'scale-110 shadow-2xl brightness-150'
-                                    : 'shadow-lg'}
-                  ${accessibility.animationsEnabled ? '' : ''}
-                `}
+                                  ${activeColor === color.id
+                                    ? 'scale-105 shadow-[0_0_20px_rgba(255,255,255,0.5)] brightness-125 border-4 border-white'
+                                    : 'shadow-lg border-4 border-transparent'}
+                                `}
                                 style={{
                                     backgroundColor: color.color,
-                                    opacity: activeColor === color.id ? 1 : 0.8
+                                    opacity: activeColor === color.id ? 1 : 0.8,
+                                    touchAction: 'none'
                                 }}
                                 aria-label={color.name}
                             >
-                                <span className="text-white drop-shadow-lg">
-                                    {color.name}
+                                <span className="text-white drop-shadow-md text-4xl opacity-50">
+                                    {color.id === 0 && '🔴'}
+                                    {color.id === 1 && '🔵'}
+                                    {color.id === 2 && '🟢'}
+                                    {color.id === 3 && '🟡'}
                                 </span>
                             </button>
                         ))}
@@ -276,11 +272,11 @@ function SimonSays() {
                                 {sequence.map((_, index) => (
                                     <div
                                         key={index}
-                                        className="w-4 h-4 rounded-full"
+                                        className="w-4 h-4 rounded-full transition-colors duration-300"
                                         style={{
                                             backgroundColor: index < playerSequence.length
                                                 ? 'var(--accent-primary)'
-                                                : 'var(--bg-tertiary, #e2e8f0)' // Fallback for bg-theme-tertiary
+                                                : 'var(--border-color)'
                                         }}
                                     />
                                 ))}
@@ -310,7 +306,7 @@ function SimonSays() {
                 >
                     <div className="text-center">
                         <div className="text-6xl mb-6">
-                            {sequence.length >= 20 ? '🏆' : sequence.length >= 10 ? '🎉' : '👍'}
+                            {sequence.length >= 10 ? '🏆' : sequence.length >= 5 ? '🎉' : '👍'}
                         </div>
                         <h3 className="text-2xl font-bold text-theme-primary mb-6">
                             Чудова спроба!
@@ -325,7 +321,7 @@ function SimonSays() {
                             </div>
                         </div>
 
-                        {sequence.length >= 20 && (
+                        {sequence.length >= 10 && (
                             <div className="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900 dark:bg-opacity-20 rounded-xl">
                                 <div className="text-4xl mb-2">🎖️</div>
                                 <p className="font-bold text-yellow-700 dark:text-yellow-300">

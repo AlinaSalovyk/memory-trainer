@@ -7,6 +7,7 @@ import Modal from '../../components/ui/Modal';
 import useGameState from '../../hooks/useGameState';
 import useTimer from '../../hooks/useTimer';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useProfile } from '../../contexts/ProfileContext';
 import storageService from '../../services/storageService';
 
 const GAME_DURATION = 60;
@@ -21,7 +22,8 @@ const COLOR_MAP = {
 function DualTask() {
     const navigate = useNavigate();
     const { accessibility } = useTheme();
-    const gameState = useGameState('dual-task');
+    const gameState = useGameState('dualTask');
+    const { refreshAll } = useProfile();
 
     const [gameStarted, setGameStarted] = useState(false);
     const [currentNumber, setCurrentNumber] = useState(1);
@@ -33,14 +35,12 @@ function DualTask() {
     const { time, start: startTimer, stop: stopTimer, reset: resetTimer } = useTimer(GAME_DURATION, true);
     const colorTimerRef = useRef(null);
 
-    // Генерація нового кольорового завдання
     const generateColorTask = () => {
         const text = COLORS[Math.floor(Math.random() * COLORS.length)];
         const color = COLORS[Math.floor(Math.random() * COLORS.length)];
         setColorTask({ text, color });
     };
 
-    // Початок гри
     const handleStartGame = () => {
         setGameStarted(true);
         gameState.startGame();
@@ -53,14 +53,12 @@ function DualTask() {
         startColorTimer();
     };
 
-    // Таймер зміни кольору
     const startColorTimer = () => {
         colorTimerRef.current = setInterval(() => {
             generateColorTask();
         }, 4000);
     };
 
-    // Завдання 1: Натискання цифр по порядку
     const handleNumberClick = (number) => {
         if (number === currentNumber) {
             setCurrentNumber(currentNumber + 1);
@@ -71,7 +69,6 @@ function DualTask() {
         }
     };
 
-    // Завдання 2: Відповідь на колір
     const handleColorResponse = (isMatch) => {
         const actualMatch = colorTask.text === colorTask.color;
         if (isMatch === actualMatch) {
@@ -83,20 +80,18 @@ function DualTask() {
         generateColorTask();
     };
 
-    // Показати зворотній зв'язок
     const showFeedback = (task, correct) => {
         setFeedback({ task, correct });
         setTimeout(() => setFeedback(null), 500);
     };
 
-    // Таймер закінчення
     useEffect(() => {
         if (time === 0 && gameState.isPlaying) {
             endGame();
         }
     }, [time]);
 
-    // Завершення гри
+
     const endGame = () => {
         stopTimer();
         gameState.pauseGame();
@@ -108,27 +103,31 @@ function DualTask() {
         const totalScore = scores.task1 + scores.task2;
         const balanceScore = Math.round(100 - Math.abs(scores.task1 - scores.task2) / Math.max(scores.task1, scores.task2, 1) * 100);
 
-        const results = gameState.finishGame({
-            totalScore,
-            task1Score: scores.task1,
-            task2Score: scores.task2,
-            balanceScore,
-            currentNumber: currentNumber - 1
-        });
-
-        // Оновлення рекордів
         const currentRecords = storageService.getRecords();
+        let isNewRecord = false;
+
         if (!currentRecords.dualTask.bestBalance ||
             balanceScore > currentRecords.dualTask.bestBalance) {
             storageService.updateRecord('dualTask', null, {
                 bestBalance: balanceScore
             });
+            isNewRecord = true;
         }
+
+        gameState.finishGame({
+            totalScore,
+            task1Score: scores.task1,
+            task2Score: scores.task2,
+            balanceScore,
+            currentNumber: currentNumber - 1,
+            bestBalance: isNewRecord ? balanceScore : (currentRecords.dualTask.bestBalance || 0)
+        });
+
+        refreshAll();
 
         setShowResults(true);
     };
 
-    // Очищення таймерів
     useEffect(() => {
         return () => {
             if (colorTimerRef.current) {
@@ -181,8 +180,8 @@ function DualTask() {
         );
     }
 
-    const totalScore = scores.task1 + scores.task2;
-    const balanceScore = Math.round(100 - Math.abs(scores.task1 - scores.task2) / Math.max(scores.task1, scores.task2, 1) * 100);
+    const renderTotalScore = scores.task1 + scores.task2;
+    const renderBalanceScore = Math.round(100 - Math.abs(scores.task1 - scores.task2) / Math.max(scores.task1, scores.task2, 1) * 100);
 
     return (
         <Layout>
@@ -207,7 +206,7 @@ function DualTask() {
 
                     <Card padding="md" className="text-center">
                         <div className="text-2xl mb-1">🎯</div>
-                        <div className="text-2xl font-bold" style={{ color: 'var(--accent-primary)' }}>{totalScore}</div>
+                        <div className="text-2xl font-bold" style={{ color: 'var(--accent-primary)' }}>{renderTotalScore}</div>
                         <div className="text-sm text-theme-secondary">Всього</div>
                     </Card>
 
@@ -299,7 +298,7 @@ function DualTask() {
                 {/* Balance Indicator */}
                 <Card>
                     <h3 className="text-xl font-bold text-theme-primary mb-4">
-                        ⚖️ Баланс завдань: {balanceScore}%
+                        ⚖️ Баланс завдань: {renderBalanceScore}%
                     </h3>
                     <div className="flex items-center space-x-4">
                         <span className="text-sm font-medium text-theme-secondary">
@@ -335,7 +334,7 @@ function DualTask() {
                 >
                     <div className="text-center">
                         <div className="text-6xl mb-6">
-                            {balanceScore >= 90 ? '🏆' : balanceScore >= 70 ? '🎉' : '👍'}
+                            {renderBalanceScore >= 90 ? '🏆' : renderBalanceScore >= 70 ? '🎉' : '👍'}
                         </div>
                         <h3 className="text-2xl font-bold text-theme-primary mb-6">
                             Час вийшов!
@@ -343,11 +342,11 @@ function DualTask() {
 
                         <div className="grid grid-cols-2 gap-4 mb-6">
                             <div className="p-4 bg-theme-tertiary rounded-xl">
-                                <div className="text-3xl font-bold" style={{ color: 'var(--accent-primary)' }}>{totalScore}</div>
+                                <div className="text-3xl font-bold" style={{ color: 'var(--accent-primary)' }}>{renderTotalScore}</div>
                                 <div className="text-sm text-theme-secondary">Загальний рахунок</div>
                             </div>
                             <div className="p-4 bg-theme-tertiary rounded-xl">
-                                <div className="text-3xl font-bold" style={{ color: 'var(--accent-primary)' }}>{balanceScore}%</div>
+                                <div className="text-3xl font-bold" style={{ color: 'var(--accent-primary)' }}>{renderBalanceScore}%</div>
                                 <div className="text-sm text-theme-secondary">Баланс</div>
                             </div>
                             <div className="p-4 bg-theme-tertiary rounded-xl">
@@ -360,8 +359,7 @@ function DualTask() {
                             </div>
                         </div>
 
-                        {/* Семантичні кольори (жовтий) залишаємо як є */}
-                        {balanceScore >= 90 && (
+                        {renderBalanceScore >= 90 && (
                             <div className="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900 dark:bg-opacity-20 rounded-xl">
                                 <div className="text-4xl mb-2">🎖️</div>
                                 <p className="font-bold text-yellow-700 dark:text-yellow-300">

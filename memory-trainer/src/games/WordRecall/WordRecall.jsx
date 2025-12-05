@@ -1,6 +1,3 @@
-// E:\final\memory-trainer\src\games\WordRecall\WordRecall.jsx
-// WordRecall.jsx - Гра на запам'ятовування слів
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/layout/Layout';
@@ -9,6 +6,7 @@ import Button from '../../components/ui/Button';
 import Modal from '../../components/ui/Modal';
 import useGameState from '../../hooks/useGameState';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useProfile } from '../../contexts/ProfileContext';
 import storageService from '../../services/storageService';
 
 // Словник українських слів
@@ -34,8 +32,8 @@ const PHASES = {
 function WordRecall() {
     const navigate = useNavigate();
     const { accessibility } = useTheme();
-    const gameState = useGameState('word-recall');
-
+    const gameState = useGameState('wordRecall');
+    const { refreshAll } = useProfile();
     const [gameStarted, setGameStarted] = useState(false);
     const [phase, setPhase] = useState(PHASES.DISPLAY);
     const [currentWord, setCurrentWord] = useState('');
@@ -48,21 +46,18 @@ function WordRecall() {
     const [showResults, setShowResults] = useState(false);
     const [feedback, setFeedback] = useState(null);
     const [usedWords, setUsedWords] = useState([]);
-
+    const [hints, setHints] = useState(3);
     const inputRef = useRef(null);
 
-    // Вибір випадкового слова
     const getRandomWord = () => {
         const availableWords = WORDS.filter(w => !usedWords.includes(w));
         if (availableWords.length === 0) {
-            // Скинути використані слова
             setUsedWords([]);
             return WORDS[Math.floor(Math.random() * WORDS.length)];
         }
         return availableWords[Math.floor(Math.random() * availableWords.length)];
     };
 
-    // Маскування слова (видалення випадкових літер)
     const maskWord = (word) => {
         const length = word.length;
         const lettersToRemove = Math.min(Math.ceil(length / 2), length - 1);
@@ -77,7 +72,6 @@ function WordRecall() {
         ).join('');
     };
 
-    // Початок гри
     const handleStartGame = () => {
         setGameStarted(true);
         gameState.startGame();
@@ -85,10 +79,11 @@ function WordRecall() {
         setCorrectStreak(0);
         setTotalAttempts(0);
         setIncorrectCount(0);
+        setHints(3);
         startRound();
     };
 
-    // Початок раунду
+
     const startRound = () => {
         const word = getRandomWord();
         setCurrentWord(word);
@@ -99,7 +94,6 @@ function WordRecall() {
         setUsedWords([...usedWords, word]);
     };
 
-    // Таймер показу слова
     useEffect(() => {
         if (phase === PHASES.DISPLAY && displayTime > 0) {
             const timer = setTimeout(() => {
@@ -114,7 +108,6 @@ function WordRecall() {
         }
     }, [phase, displayTime]);
 
-    // Перевірка відповіді
     const checkAnswer = () => {
         const isCorrect = userInput.toUpperCase() === currentWord;
         setTotalAttempts(totalAttempts + 1);
@@ -132,8 +125,6 @@ function WordRecall() {
                 type: 'error',
                 message: `Неправильно. Слово було: ${currentWord}`
             });
-
-            // Завершити гру після 3 помилок
             if (incorrectCount + 1 >= 3) {
                 setTimeout(() => {
                     finishGame();
@@ -146,8 +137,9 @@ function WordRecall() {
         }
     };
 
-    // Підказка (показати одну літеру)
     const showHint = () => {
+        if (hints <= 0) return;
+
         const missingIndices = maskedWord
             .split('')
             .map((char, index) => char === '_' ? index : -1)
@@ -158,30 +150,35 @@ function WordRecall() {
             const newMasked = maskedWord.split('');
             newMasked[randomIndex] = currentWord[randomIndex];
             setMaskedWord(newMasked.join(''));
+            setHints(hints - 1);
         }
     };
 
-    // Завершення гри
+
     const finishGame = () => {
         const accuracy = totalAttempts > 0
             ? Math.round((correctStreak / totalAttempts) * 100)
             : 0;
 
-        const results = gameState.finishGame({
-            correctStreak,
-            totalAttempts,
-            accuracy
-        });
-
-        // Оновлення рекордів
         const currentRecords = storageService.getRecords();
+        let isNewRecord = false;
+
         if (!currentRecords.wordRecall.bestStreak ||
             correctStreak > currentRecords.wordRecall.bestStreak) {
             storageService.updateRecord('wordRecall', null, {
                 bestStreak: correctStreak
             });
+            isNewRecord = true;
         }
 
+        gameState.finishGame({
+            correctStreak,
+            totalAttempts,
+            accuracy,
+            bestStreak: isNewRecord ? correctStreak : (currentRecords.wordRecall.bestStreak || correctStreak)
+        });
+
+        refreshAll();
         setShowResults(true);
     };
 
@@ -219,7 +216,7 @@ function WordRecall() {
                         <ul className="space-y-2 text-theme-secondary">
                             <li>• Запам'ятайте слово, яке показується на екрані</li>
                             <li>• Заповніть пропущені літери</li>
-                            <li>• Можна використати підказку</li>
+                            <li>• <strong>У вас є лише 3 підказки на всю гру</strong></li>
                             <li>• Гра завершується після 3 помилок</li>
                             <li>• Мета: максимальна серія правильних відповідей</li>
                         </ul>
@@ -243,7 +240,7 @@ function WordRecall() {
                 </div>
 
                 {/* Stats */}
-                <div className="grid grid-cols-3 gap-4 mb-6">
+                <div className="grid grid-cols-4 gap-4 mb-6">
                     <Card padding="md" className="text-center">
                         <div className="text-2xl mb-1">🔥</div>
                         <div className="text-2xl font-bold" style={{ color: 'var(--accent-primary)' }}>{correctStreak}</div>
@@ -256,6 +253,12 @@ function WordRecall() {
                             {totalAttempts > 0 ? Math.round((correctStreak / totalAttempts) * 100) : 0}%
                         </div>
                         <div className="text-sm text-theme-secondary">Точність</div>
+                    </Card>
+
+                    <Card padding="md" className="text-center">
+                        <div className="text-2xl mb-1">💡</div>
+                        <div className="text-2xl font-bold text-yellow-500">{hints}</div>
+                        <div className="text-sm text-theme-secondary">Підказок</div>
                     </Card>
 
                     <Card padding="md" className="text-center">
@@ -273,9 +276,9 @@ function WordRecall() {
                                 Запам'ятайте слово
                             </h2>
                             <div className={`
-                text-6xl font-bold mb-8
-                ${accessibility.animationsEnabled ? 'animate-pulse' : ''}
-              `} style={{ color: 'var(--accent-primary)' }}>
+                                            text-6xl font-bold mb-8
+                                            ${accessibility.animationsEnabled ? 'animate-pulse' : ''}
+                                          `} style={{ color: 'var(--accent-primary)' }}>
                                 {currentWord}
                             </div>
                             <div className="text-5xl font-bold text-theme-primary">
@@ -306,13 +309,13 @@ function WordRecall() {
                                     onKeyPress={(e) => e.key === 'Enter' && !feedback && checkAnswer()}
                                     placeholder="Введіть слово"
                                     className="
-                    w-full px-6 py-4 text-2xl text-center font-bold uppercase
-                    border-4 border-theme
-                    rounded-xl bg-theme-secondary
-                    text-theme-primary
-                    focus:border-[var(--border-focus)] focus:outline-none
-                    transition-colors
-                  "
+                                        w-full px-6 py-4 text-2xl text-center font-bold uppercase
+                                        border-4 border-theme
+                                        rounded-xl bg-theme-secondary
+                                        text-theme-primary
+                                        focus:border-[var(--border-focus)] focus:outline-none
+                                        transition-colors
+                                      "
                                     disabled={feedback !== null}
                                 />
                             </div>
@@ -320,12 +323,12 @@ function WordRecall() {
                             {/* Feedback */}
                             {feedback && (
                                 <div className={`
-                  p-4 rounded-xl mb-6 font-bold text-lg
-                  ${feedback.type === 'success'
+                                      p-4 rounded-xl mb-6 font-bold text-lg
+                                      ${feedback.type === 'success'
                                     ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300'
                                     : 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300'}
-                  ${accessibility.animationsEnabled ? 'animate-slide-up' : ''}
-                `}>
+                                      ${accessibility.animationsEnabled ? 'animate-slide-up' : ''}
+                                    `}>
                                     {feedback.message}
                                 </div>
                             )}
@@ -336,9 +339,9 @@ function WordRecall() {
                                     <Button
                                         variant="secondary"
                                         onClick={showHint}
-                                        disabled={maskedWord.indexOf('_') === -1}
+                                        disabled={hints <= 0 || maskedWord.indexOf('_') === -1}
                                     >
-                                        💡 Підказка
+                                        💡 Підказка ({hints})
                                     </Button>
                                     <Button
                                         onClick={checkAnswer}
@@ -415,6 +418,7 @@ function WordRecall() {
                                     setCorrectStreak(0);
                                     setTotalAttempts(0);
                                     setIncorrectCount(0);
+                                    setHints(3);
                                 }}
                                 fullWidth
                             >

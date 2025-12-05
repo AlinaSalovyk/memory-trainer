@@ -1,6 +1,3 @@
-// E:\final\memory-trainer\src\games\PatternGrid\PatternGrid.jsx
-// PatternGrid.jsx - Гра на запам'ятовування патерну на сітці
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/layout/Layout';
@@ -9,6 +6,7 @@ import Button from '../../components/ui/Button';
 import Modal from '../../components/ui/Modal';
 import useGameState from '../../hooks/useGameState';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useProfile } from '../../contexts/ProfileContext';
 import storageService from '../../services/storageService';
 
 const PHASES = {
@@ -20,8 +18,8 @@ const PHASES = {
 function PatternGrid() {
     const navigate = useNavigate();
     const { accessibility } = useTheme();
-    const gameState = useGameState('pattern-grid');
-
+    const gameState = useGameState('patternGrid');
+    const { refreshAll } = useProfile();
     const [gameStarted, setGameStarted] = useState(false);
     const [phase, setPhase] = useState(PHASES.MEMORIZE);
     const [level, setLevel] = useState(1);
@@ -33,7 +31,6 @@ function PatternGrid() {
     const [showResults, setShowResults] = useState(false);
     const [feedback, setFeedback] = useState(null);
 
-    // Генерація патерну
     const generatePattern = (size, cellCount) => {
         const totalCells = size * size;
         const pattern = new Set();
@@ -46,14 +43,12 @@ function PatternGrid() {
         return Array.from(pattern);
     };
 
-    // Початок гри
     const handleStartGame = () => {
         setGameStarted(true);
         gameState.startGame();
         startRound(1, 3);
     };
 
-    // Початок раунду
     const startRound = (currentLevel, size) => {
         const cellCount = Math.min(currentLevel + 2, size * size - 1);
         const newPattern = generatePattern(size, cellCount);
@@ -67,7 +62,6 @@ function PatternGrid() {
         setFeedback(null);
     };
 
-    // Таймер показу патерну
     useEffect(() => {
         if (phase === PHASES.MEMORIZE && displayTime > 0) {
             const timer = setTimeout(() => {
@@ -79,20 +73,16 @@ function PatternGrid() {
         }
     }, [phase, displayTime]);
 
-    // Клік по клітинці
     const handleCellClick = (cellIndex) => {
         if (phase !== PHASES.RECALL) return;
 
         if (playerPattern.includes(cellIndex)) {
-            // Зняти виділення
             setPlayerPattern(playerPattern.filter(c => c !== cellIndex));
         } else {
-            // Додати виділення
             setPlayerPattern([...playerPattern, cellIndex]);
         }
     };
 
-    // Перевірка відповіді
     const checkAnswer = () => {
         const isCorrect =
             playerPattern.length === pattern.length &&
@@ -103,7 +93,6 @@ function PatternGrid() {
 
             setTimeout(() => {
                 const nextLevel = level + 1;
-                // Збільшити розмір сітки кожні 3 рівні
                 const newSize = Math.min(6, 3 + Math.floor(nextLevel / 3));
                 startRound(nextLevel, newSize);
             }, 1500);
@@ -127,22 +116,24 @@ function PatternGrid() {
         }
     };
 
-    // Завершення гри
     const finishGame = () => {
-        const results = gameState.finishGame({
-            level: level,
-            highestLevel: level
-        });
-
-        // Оновлення рекордів
         const currentRecords = storageService.getRecords();
+        let newHighScore = false;
+
         if (!currentRecords.patternGrid.highestLevel ||
             level > currentRecords.patternGrid.highestLevel) {
             storageService.updateRecord('patternGrid', null, {
                 highestLevel: level
             });
+            newHighScore = true;
         }
 
+        const results = gameState.finishGame({
+            level: level,
+            highestLevel: newHighScore ? level : (currentRecords.patternGrid.highestLevel || level)
+        });
+
+        refreshAll();
         setShowResults(true);
     };
 
@@ -274,15 +265,15 @@ function PatternGrid() {
                                     onClick={() => handleCellClick(index)}
                                     disabled={phase === PHASES.MEMORIZE}
                                     className={`
-                    aspect-square rounded-xl transition-all duration-200
-                    ${phase === PHASES.RECALL ? 'hover:scale-105 cursor-pointer' : 'cursor-not-allowed'}
-                    ${(showPattern && isInPattern) || (!showPattern && isSelected)
+                                        aspect-square rounded-xl transition-all duration-200
+                                        ${phase === PHASES.RECALL ? 'hover:scale-105 cursor-pointer' : 'cursor-not-allowed'}
+                                        ${(showPattern && isInPattern) || (!showPattern && isSelected)
                                         ? 'shadow-lg'
                                         : 'bg-theme-tertiary'}
-                    ${accessibility.animationsEnabled && ((showPattern && isInPattern) || (!showPattern && isSelected))
+                                        ${accessibility.animationsEnabled && ((showPattern && isInPattern) || (!showPattern && isSelected))
                                         ? 'animate-pulse-slow'
                                         : ''}
-                  `}
+                                    `}
                                     style={
                                         (showPattern && isInPattern) || (!showPattern && isSelected)
                                             ? { backgroundColor: 'var(--accent-primary)' }
@@ -296,12 +287,12 @@ function PatternGrid() {
                     {/* Feedback */}
                     {feedback && (
                         <div className={`
-              p-4 rounded-xl mb-6 font-bold text-lg text-center
-              ${feedback.type === 'success'
+                            p-4 rounded-xl mb-6 font-bold text-lg text-center
+                            ${feedback.type === 'success'
                             ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300'
                             : 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300'}
-              ${accessibility.animationsEnabled ? 'animate-slide-up' : ''}
-            `}>
+                            ${accessibility.animationsEnabled ? 'animate-slide-up' : ''}
+                        `}>
                             {feedback.message}
                         </div>
                     )}

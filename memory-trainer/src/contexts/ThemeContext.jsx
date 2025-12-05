@@ -15,17 +15,17 @@ export const THEMES = {
 export const THEME_INFO = {
     [THEMES.LIGHT]: {
         name: 'Світла',
-        icon: <HiSun />, // Замінено '☀️'
+        icon: <HiSun />,
         description: 'Класична світла тема'
     },
     [THEMES.DARK]: {
         name: 'Темна',
-        icon: <HiMoon />, // Замінено '🌙'
+        icon: <HiMoon />,
         description: 'Комфортна для очей у темряві'
     },
     [THEMES.HIGH_CONTRAST]: {
         name: 'Висококонтрастна',
-        icon: <HiBolt />, // Замінено '⚡'
+        icon: <HiBolt />,
         description: 'Максимальний контраст для людей з вадами зору'
     },
     [THEMES.OCEAN]: {

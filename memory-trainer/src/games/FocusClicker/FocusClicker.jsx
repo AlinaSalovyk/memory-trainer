@@ -1,6 +1,3 @@
-// E:\final\memory-trainer\src\games\FocusClicker\FocusClicker.jsx
-// FocusClicker.jsx - Гра на швидкість реакції
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/layout/Layout';
@@ -9,6 +6,7 @@ import Button from '../../components/ui/Button';
 import Modal from '../../components/ui/Modal';
 import useGameState from '../../hooks/useGameState';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useProfile } from '../../contexts/ProfileContext';
 import storageService from '../../services/storageService';
 
 const TOTAL_ROUNDS = 10;
@@ -17,7 +15,8 @@ const COLORS = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'
 function FocusClicker() {
     const navigate = useNavigate();
     const { accessibility } = useTheme();
-    const gameState = useGameState('focus-clicker');
+    const gameState = useGameState('focusClicker');
+    const { refreshAll } = useProfile();
 
     const [gameStarted, setGameStarted] = useState(false);
     const [currentRound, setCurrentRound] = useState(0);
@@ -29,7 +28,6 @@ function FocusClicker() {
     const startTimeRef = useRef(null);
     const timeoutRef = useRef(null);
 
-    // Початок гри
     const handleStartGame = () => {
         setCountdown(3);
         const countdownInterval = setInterval(() => {
@@ -49,16 +47,15 @@ function FocusClicker() {
         setReactionTimes([]);
     };
 
-    // Початок раунду
     const startRound = () => {
-        const delay = Math.random() * 2000 + 1000; // 1-3 секунди
+        const delay = Math.random() * 1500 + 500;
 
         timeoutRef.current = setTimeout(() => {
             const newTarget = {
-                x: Math.random() * 80 + 10, // 10-90%
+                x: Math.random() * 80 + 10,
                 y: Math.random() * 80 + 10,
                 color: COLORS[Math.floor(Math.random() * COLORS.length)],
-                size: Math.random() * 30 + 50 // 50-80px
+                size: Math.random() * 40 + 80
             };
 
             setTarget(newTarget);
@@ -66,8 +63,12 @@ function FocusClicker() {
         }, delay);
     };
 
-    // Клік по цілі
-    const handleTargetClick = () => {
+    const handleTargetClick = (e) => {
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
         if (!startTimeRef.current) return;
 
         const reactionTime = Date.now() - startTimeRef.current;
@@ -83,33 +84,35 @@ function FocusClicker() {
         }
     };
 
-    // Завершення гри
     const finishGame = (times) => {
         const avgReaction = Math.round(times.reduce((a, b) => a + b, 0) / times.length);
         const bestReaction = Math.min(...times);
-        const score = Math.round(1000 - avgReaction); // Чим менше час, тим більше очок
+        const score = Math.round(1000 - avgReaction);
 
-        const results = gameState.finishGame({
-            avgReaction,
-            bestReaction,
-            totalRounds: TOTAL_ROUNDS,
-            allTimes: times,
-            score
-        });
-
-        // Оновлення рекордів
         const currentRecords = storageService.getRecords();
+        let isNewRecord = false;
+
         if (!currentRecords.focusClicker.bestAvgReaction || avgReaction < currentRecords.focusClicker.bestAvgReaction) {
             storageService.updateRecord('focusClicker', null, {
                 bestAvgReaction: avgReaction,
                 bestScore: score
             });
+            isNewRecord = true;
         }
 
+        gameState.finishGame({
+            avgReaction,
+            bestReaction,
+            totalRounds: TOTAL_ROUNDS,
+            allTimes: times,
+            score,
+            bestAvgReaction: isNewRecord ? avgReaction : (currentRecords.focusClicker.bestAvgReaction || avgReaction)
+        });
+
+        refreshAll();
         setShowResults(true);
     };
 
-    // Очищення таймерів
     useEffect(() => {
         return () => {
             if (timeoutRef.current) {
@@ -169,7 +172,6 @@ function FocusClicker() {
     return (
         <Layout>
             <div className="max-w-6xl mx-auto">
-                {/* Header */}
                 <div className="flex items-center justify-between mb-6">
                     <h1 className="text-3xl font-bold text-theme-primary">
                         ⚡ Focus Clicker
@@ -179,7 +181,6 @@ function FocusClicker() {
                     </Button>
                 </div>
 
-                {/* Stats */}
                 <div className="grid grid-cols-3 gap-4 mb-6">
                     <Card padding="md" className="text-center">
                         <div className="text-2xl mb-1">🎯</div>
@@ -206,8 +207,7 @@ function FocusClicker() {
                     </Card>
                 </div>
 
-                {/* Game Area */}
-                <Card padding="none" className="relative overflow-hidden" style={{ height: '500px' }}>
+                <Card padding="none" className="relative overflow-hidden select-none" style={{ height: '500px', touchAction: 'none' }}>
                     {countdown > 0 ? (
                         <div className="absolute inset-0 flex items-center justify-center bg-theme-tertiary">
                             <div className="text-center">
@@ -235,26 +235,28 @@ function FocusClicker() {
                         </div>
                     ) : (
                         <button
-                            onClick={handleTargetClick}
+                            onPointerDown={handleTargetClick}
                             className={`
-                absolute rounded-full cursor-pointer
-                ${accessibility.animationsEnabled ? 'transition-all duration-200 hover:scale-110' : ''}
-                shadow-2xl
-              `}
+                                absolute rounded-full cursor-pointer
+                                ${accessibility.animationsEnabled ? 'transition-all duration-200 hover:scale-110' : ''}
+                                shadow-2xl active:scale-95
+                            `}
                             style={{
                                 left: `${target.x}%`,
                                 top: `${target.y}%`,
                                 width: `${target.size}px`,
                                 height: `${target.size}px`,
                                 backgroundColor: target.color,
-                                transform: 'translate(-50%, -50%)'
+                                transform: 'translate(-50%, -50%)',
+                                border: 'none',
+                                outline: 'none',
+                                touchAction: 'none'
                             }}
                             aria-label="Клікніть по цілі"
                         />
                     )}
                 </Card>
 
-                {/* Reaction History */}
                 {reactionTimes.length > 0 && (
                     <Card className="mt-6">
                         <h3 className="text-xl font-bold text-theme-primary mb-4">
@@ -266,9 +268,10 @@ function FocusClicker() {
                                     key={index}
                                     className={`
                     px-4 py-2 rounded-lg font-bold
-                    ${time < 250 ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300' :
-                                        time < 400 ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300' :
-                                            'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300'}
+                    ${/* ОНОВЛЕНІ КОЛЬОРИ: */
+                                        time < 450 ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300' :
+                                            time < 600 ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300' :
+                                                'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300'}
                   `}
                                 >
                                     #{index + 1}: {time}мс
@@ -278,7 +281,6 @@ function FocusClicker() {
                     </Card>
                 )}
 
-                {/* Results Modal */}
                 <Modal
                     isOpen={showResults}
                     onClose={() => {}}
@@ -304,7 +306,7 @@ function FocusClicker() {
                             </div>
                         </div>
 
-                        {avgReaction < 250 && (
+                        {avgReaction < 450 && (
                             <div className="mb-6 p-4 bg-green-50 dark:bg-green-900 dark:bg-opacity-20 rounded-xl">
                                 <div className="text-4xl mb-2">⚡</div>
                                 <p className="font-bold text-green-700 dark:text-green-300">

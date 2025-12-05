@@ -1,6 +1,3 @@
-// E:\final\memory-trainer\src\games\MemoryCards\MemoryCards.jsx
-// MemoryCards.jsx - Гра "Знайди парочки"
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/layout/Layout';
@@ -10,6 +7,7 @@ import Modal from '../../components/ui/Modal';
 import useGameState from '../../hooks/useGameState';
 import useTimer from '../../hooks/useTimer';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useProfile } from '../../contexts/ProfileContext';
 import storageService from '../../services/storageService';
 
 const CARD_EMOJIS = ['🍎', '🍌', '🍇', '🍊', '🍓', '🍒', '🍑', '🍍', '🥝', '🥑', '🍆', '🥕', '🌽', '🥔', '🥜', '🍄', '🧀', '🥖', '🥐', '🍕', '🍔', '🌮', '🍿', '🍦', '🍪', '🎂', '🍰', '🧁', '☕', '🍵', '🥤', '🍺'];
@@ -23,6 +21,7 @@ const DIFFICULTY_LEVELS = {
 function MemoryCards() {
     const navigate = useNavigate();
     const { accessibility } = useTheme();
+    const { refreshAll } = useProfile();
     const [difficulty, setDifficulty] = useState(null);
     const [cards, setCards] = useState([]);
     const [flippedCards, setFlippedCards] = useState([]);
@@ -31,11 +30,13 @@ function MemoryCards() {
     const [hints, setHints] = useState(3);
     const [showResults, setShowResults] = useState(false);
     const [sessionResults, setSessionResults] = useState(null);
+    const [isPaused, setIsPaused] = useState(false);
+    const [isHintActive, setIsHintActive] = useState(false);
 
-    const { time, formattedTime, start: startTimer, pause: pauseTimer, reset: resetTimer } = useTimer();
-    const gameState = useGameState('memory-cards');
+    const { time, formattedTime, start: startTimer, pause: pauseTimer, resume: resumeTimer, reset: resetTimer } = useTimer();
 
-    // Генерація карт
+    const gameState = useGameState('memoryCards');
+
     const generateCards = (level) => {
         const { rows, cols } = DIFFICULTY_LEVELS[level];
         const totalCards = rows * cols;
@@ -44,7 +45,6 @@ function MemoryCards() {
         const selectedEmojis = CARD_EMOJIS.slice(0, pairsCount);
         const cardPairs = [...selectedEmojis, ...selectedEmojis];
 
-        // Перемішування
         const shuffled = cardPairs
             .map((emoji, index) => ({
                 id: index,
@@ -57,7 +57,6 @@ function MemoryCards() {
         return shuffled;
     };
 
-    // Початок гри
     const handleStartGame = (level) => {
         setDifficulty(level);
         const newCards = generateCards(level);
@@ -66,14 +65,17 @@ function MemoryCards() {
         setMatchedCards([]);
         setMoves(0);
         setHints(3);
+        setIsPaused(false);
+        setIsHintActive(false);
         resetTimer();
         gameState.startGame({ level });
         startTimer();
     };
 
-    // Клік по карті
     const handleCardClick = (cardId) => {
         if (
+            isPaused ||
+            isHintActive ||
             flippedCards.length >= 2 ||
             flippedCards.includes(cardId) ||
             matchedCards.includes(cardId)
@@ -90,32 +92,27 @@ function MemoryCards() {
         }
     };
 
-    // Перевірка співпадіння
     const checkMatch = (flipped) => {
         const [first, second] = flipped;
         const firstCard = cards.find(c => c.id === first);
         const secondCard = cards.find(c => c.id === second);
 
         if (firstCard.emoji === secondCard.emoji) {
-            // Співпадіння!
             setMatchedCards([...matchedCards, first, second]);
             setFlippedCards([]);
         } else {
-            // Не співпали
             setTimeout(() => {
                 setFlippedCards([]);
             }, 1000);
         }
     };
 
-    // Використання підказки
     const useHint = () => {
-        if (hints <= 0 || flippedCards.length > 0) return;
+        if (hints <= 0 || isPaused || isHintActive) return;
 
         const unmatchedCards = cards.filter(c => !matchedCards.includes(c.id));
         if (unmatchedCards.length < 2) return;
 
-        // Знайти пару
         const emojiGroups = {};
         unmatchedCards.forEach(card => {
             if (!emojiGroups[card.emoji]) {
@@ -125,48 +122,62 @@ function MemoryCards() {
         });
 
         const pairToShow = Object.values(emojiGroups).find(group => group.length >= 2);
+
         if (pairToShow) {
-            setFlippedCards(pairToShow.slice(0, 2));
-            setHints(hints - 1);
+            setIsHintActive(true);
+            setFlippedCards([]);
             setTimeout(() => {
-                setFlippedCards([]);
-            }, 2000);
+                setFlippedCards([pairToShow[0], pairToShow[1]]);
+                setHints(hints - 1);
+                setTimeout(() => {
+                    setFlippedCards([]);
+                    setIsHintActive(false);
+                }, 1500);
+            }, 100);
         }
     };
 
-    // Перевірка закінчення гри
+    const togglePause = () => {
+        if (isPaused) {
+            setIsPaused(false);
+            resumeTimer();
+            gameState.resumeGame();
+        } else {
+            setIsPaused(true);
+            pauseTimer();
+            gameState.pauseGame();
+        }
+    };
+
     useEffect(() => {
         if (difficulty && matchedCards.length === cards.length && cards.length > 0) {
             pauseTimer();
 
-            const results = gameState.finishGame({
-                level: difficulty,
-                moves,
-                time,
-                hintsUsed: 3 - hints
-            });
-
-            // Оновлення рекордів
             const currentRecords = storageService.getRecords();
             const levelRecord = currentRecords.memoryCards[difficulty];
+            let isNewBestMoves = false;
 
             if (!levelRecord.bestMoves || moves < levelRecord.bestMoves) {
                 storageService.updateRecord('memoryCards', difficulty, { bestMoves: moves });
+                isNewBestMoves = true;
             }
             if (!levelRecord.bestTime || time < levelRecord.bestTime) {
                 storageService.updateRecord('memoryCards', difficulty, { bestTime: time });
             }
 
+            const results = gameState.finishGame({
+                level: difficulty,
+                moves,
+                time,
+                hintsUsed: 3 - hints,
+                bestMoves: isNewBestMoves ? moves : (levelRecord.bestMoves || moves)
+            });
+
+            refreshAll();
             setSessionResults(results);
             setShowResults(true);
         }
-    }, [matchedCards, cards.length]);
-
-    // Пауза гри
-    const handlePause = () => {
-        gameState.pauseGame();
-        pauseTimer();
-    };
+    }, [matchedCards, cards.length, difficulty, moves, time, hints, pauseTimer, gameState, refreshAll]);
 
     if (!difficulty) {
         return (
@@ -243,8 +254,12 @@ function MemoryCards() {
                         <Button variant="ghost" onClick={() => navigate('/')}>
                             Вихід
                         </Button>
-                        <Button variant="secondary" onClick={handlePause}>
-                            ⏸ Пауза
+                        <Button
+                            variant="secondary"
+                            onClick={togglePause}
+                            disabled={showResults}
+                        >
+                            {isPaused ? '▶️ Продовжити' : '⏸ Пауза'}
                         </Button>
                     </div>
                 </div>
@@ -286,7 +301,7 @@ function MemoryCards() {
                                 size="sm"
                                 variant="outline"
                                 onClick={useHint}
-                                disabled={hints === 0 || flippedCards.length > 0}
+                                disabled={hints === 0 || isPaused || isHintActive || matchedCards.length === cards.length}
                                 className="mt-2"
                             >
                                 Підказка
@@ -296,9 +311,9 @@ function MemoryCards() {
                 </div>
 
                 {/* Game Board */}
-                <Card padding="lg">
+                <Card padding="lg" className="relative">
                     <div
-                        className="grid gap-3"
+                        className={`grid gap-3 transition-opacity duration-300 ${isPaused ? 'opacity-20 blur-sm pointer-events-none' : ''}`}
                         style={{
                             gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`
                         }}
@@ -311,27 +326,40 @@ function MemoryCards() {
                                 <button
                                     key={card.id}
                                     onClick={() => handleCardClick(card.id)}
-                                    disabled={isMatched}
+                                    disabled={isMatched || isPaused}
                                     className={`
-                    aspect-square rounded-xl text-4xl font-bold flex items-center justify-center
-                    transition-all duration-500 transform
-                    ${isFlipped ? 'bg-theme-card' : 'bg-gradient-to-br from-primary to-purple-600'}
-                    ${isMatched ? 'opacity-50 cursor-default' : 'hover:scale-105 cursor-pointer'}
-                    ${!isFlipped && 'shadow-lg hover:shadow-xl'}
-                    ${accessibility.animationsEnabled ? 'animate-flip-card' : ''}
-                  `}
+                                        aspect-square rounded-xl text-4xl font-bold flex items-center justify-center
+                                        transition-all duration-500 transform
+                                        ${isFlipped ? 'bg-theme-card' : 'bg-gradient-to-br from-primary to-purple-600'}
+                                        ${isMatched ? 'opacity-50 cursor-default' : 'hover:scale-105 cursor-pointer'}
+                                        ${!isFlipped && !isMatched && !isPaused && 'shadow-lg hover:shadow-xl'}
+                                        ${accessibility.animationsEnabled ? 'animate-flip-card' : ''}
+                                    `}
                                     style={{
                                         transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
                                         transformStyle: 'preserve-3d'
                                     }}
                                 >
-                  <span style={{ transform: 'rotateY(180deg)' }}>
-                    {isFlipped ? card.emoji : '❓'}
-                  </span>
+                                    <span style={{ transform: 'rotateY(180deg)' }}>
+                                        {isFlipped ? card.emoji : '❓'}
+                                    </span>
                                 </button>
                             );
                         })}
                     </div>
+
+                    {/* Pause Overlay (якщо пауза активна) */}
+                    {isPaused && (
+                        <div className="absolute inset-0 flex items-center justify-center z-10">
+                            <div className="text-center p-6 rounded-2xl bg-theme-card shadow-2xl border-2 border-theme-primary">
+                                <h2 className="text-3xl font-bold text-theme-primary mb-4">Гра на паузі</h2>
+                                <p className="text-theme-secondary mb-6">Час зупинено. Відпочиньте!</p>
+                                <Button size="lg" onClick={togglePause}>
+                                    Продовжити гру
+                                </Button>
+                            </div>
+                        </div>
+                    )}
                 </Card>
 
                 {/* Results Modal */}

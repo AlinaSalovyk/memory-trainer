@@ -34,6 +34,14 @@ function Dashboard() {
     };
 
     const GAME_NAMES = {
+        'memoryCards': 'Memory Cards',
+        'focusClicker': 'Focus Clicker',
+        'numberSequence': 'Number Sequence',
+        'simonSays': 'Simon Says',
+        'patternGrid': 'Pattern Memory',
+        'wordRecall': 'Word Recall',
+        'focusAvoider': 'Focus Avoid',
+        'dualTask': 'Dual Task',
         'memory-cards': 'Memory Cards',
         'focus-clicker': 'Focus Clicker',
         'number-sequence': 'Number Sequence',
@@ -191,9 +199,10 @@ function Dashboard() {
                             className="px-4 py-2 rounded-lg border-2 border-theme bg-theme-card text-theme-primary"
                         >
                             <option value="all">Всі ігри</option>
-                            {Object.entries(GAME_NAMES).map(([id, name]) => (
-                                <option key={id} value={id}>{name}</option>
-                            ))}
+                            {Object.entries(GAME_NAMES).map(([id, name]) => {
+                                if (id.includes('-') && GAME_NAMES[id.replace(/-([a-z])/g, g => g[1].toUpperCase())]) return null;
+                                return <option key={id} value={id}>{name}</option>
+                            })}
                         </select>
                     </div>
 
@@ -222,14 +231,14 @@ function Dashboard() {
                                                 color: 'var(--accent-primary)'
                                             }}
                                         >
-                                            {session.gameId === 'memory-cards' && <FaRegClone />}
-                                            {session.gameId === 'focus-clicker' && <FaBolt />}
-                                            {session.gameId === 'number-sequence' && <FaListOl />}
-                                            {session.gameId === 'simon-says' && <FaPalette />}
-                                            {session.gameId === 'pattern-grid' && <FaTableCells />}
-                                            {session.gameId === 'word-recall' && <FaRegFileLines />}
-                                            {session.gameId === 'focus-avoider' && <FaBullseye />}
-                                            {session.gameId === 'dual-task' && <FaScaleBalanced />}
+                                            {(session.gameId === 'memoryCards' || session.gameId === 'memory-cards') && <FaRegClone />}
+                                            {(session.gameId === 'focusClicker' || session.gameId === 'focus-clicker') && <FaBolt />}
+                                            {(session.gameId === 'numberSequence' || session.gameId === 'number-sequence') && <FaListOl />}
+                                            {(session.gameId === 'simonSays' || session.gameId === 'simon-says') && <FaPalette />}
+                                            {(session.gameId === 'patternGrid' || session.gameId === 'pattern-grid') && <FaTableCells />}
+                                            {(session.gameId === 'wordRecall' || session.gameId === 'word-recall') && <FaRegFileLines />}
+                                            {(session.gameId === 'focusAvoider' || session.gameId === 'focus-avoider') && <FaBullseye />}
+                                            {(session.gameId === 'dualTask' || session.gameId === 'dual-task') && <FaScaleBalanced />}
                                         </div>
                                         <div>
                                             <div className="font-bold text-theme-primary">
@@ -246,6 +255,7 @@ function Dashboard() {
                                             {session.score !== undefined && `${session.score} очок`}
                                             {session.moves !== undefined && `${session.moves} ходів`}
                                             {session.avgReaction !== undefined && `${session.avgReaction}мс`}
+                                            {session.level !== undefined && `Рівень ${session.level}`}
                                         </div>
                                         <div className="text-sm text-theme-secondary">
                                             {formatTime(session.duration)}
@@ -262,4 +272,3 @@ function Dashboard() {
 }
 
 export default Dashboard;
-

@@ -4,14 +4,14 @@ export const BADGES = {
     speedster: {
         id: 'speedster',
         name: 'Швидкісний',
-        description: 'Середній час реакції < 250 мс',
+        description: 'Середній час реакції < 450 мс',
         icon: '⚡',
         color: '#f59e0b'
     },
     perfect_memory: {
         id: 'perfect_memory',
         name: 'Ідеальна Пам\'ять',
-        description: 'Пройдено Memory Cards 8x8 без помилок',
+        description: 'Пройдено Memory Cards 8x8 менше за 150 ходів',
         icon: '🧠',
         color: '#8b5cf6'
     },
@@ -25,7 +25,7 @@ export const BADGES = {
     simon_master: {
         id: 'simon_master',
         name: 'Майстер Simon',
-        description: 'Послідовність ≥ 20 кроків',
+        description: 'Послідовність ≥ 10 кроків',
         icon: '🎨',
         color: '#06b6d4'
     },
@@ -76,10 +76,14 @@ export const BADGES = {
 class BadgeService {
     checkAndAwardBadges(gameId, sessionData) {
         const earnedBadges = [];
+        const records = storageService.getRecords();
 
         switch (gameId) {
             case 'focusClicker':
-                if (sessionData.avgReaction && sessionData.avgReaction < 250) {
+                const bestAvgReaction = records.focusClicker?.bestAvgReaction || 9999;
+
+                if ((sessionData.avgReaction && sessionData.avgReaction <= 450) ||
+                    bestAvgReaction <= 450) {
                     if (this.awardBadge('speedster')) {
                         earnedBadges.push(BADGES.speedster);
                     }
@@ -87,7 +91,10 @@ class BadgeService {
                 break;
 
             case 'memoryCards':
-                if (sessionData.level === 'hard' && sessionData.moves === 32) {
+                const bestHardMoves = records.memoryCards?.hard?.bestMoves;
+
+                if ((sessionData.level === 'hard' && sessionData.moves <= 150) ||
+                    (bestHardMoves && bestHardMoves <= 150)) {
                     if (this.awardBadge('perfect_memory')) {
                         earnedBadges.push(BADGES.perfect_memory);
                     }
@@ -103,7 +110,10 @@ class BadgeService {
                 break;
 
             case 'simonSays':
-                if (sessionData.longestSequence && sessionData.longestSequence >= 20) {
+                const bestLongestSequence = records.simonSays?.longestSequence || 0;
+
+                if ((sessionData.longestSequence && sessionData.longestSequence >= 10) ||
+                    bestLongestSequence >= 10) {
                     if (this.awardBadge('simon_master')) {
                         earnedBadges.push(BADGES.simon_master);
                     }
@@ -111,7 +121,9 @@ class BadgeService {
                 break;
 
             case 'patternGrid':
-                if (sessionData.level && sessionData.level >= 10) {
+                const highestLevel = records.patternGrid?.highestLevel || 0;
+
+                if ((sessionData.level && sessionData.level >= 10) || highestLevel >= 10) {
                     if (this.awardBadge('pattern_expert')) {
                         earnedBadges.push(BADGES.pattern_expert);
                     }
@@ -119,7 +131,10 @@ class BadgeService {
                 break;
 
             case 'wordRecall':
-                if (sessionData.correctStreak && sessionData.correctStreak >= 15) {
+                const bestStreak = records.wordRecall?.bestStreak || 0;
+
+                if ((sessionData.correctStreak && sessionData.correctStreak >= 15) ||
+                    bestStreak >= 15) {
                     if (this.awardBadge('word_wizard')) {
                         earnedBadges.push(BADGES.word_wizard);
                     }
@@ -127,7 +142,9 @@ class BadgeService {
                 break;
 
             case 'focusAvoider':
-                if (sessionData.survivalTime && sessionData.survivalTime >= 60) {
+                const longestSurvival = records.focusAvoider?.longestSurvival || 0;
+                if ((sessionData.survivalTime && sessionData.survivalTime >= 60) ||
+                    longestSurvival >= 60) {
                     if (this.awardBadge('survivor')) {
                         earnedBadges.push(BADGES.survivor);
                     }
@@ -135,7 +152,9 @@ class BadgeService {
                 break;
 
             case 'dualTask':
-                if (sessionData.balanceScore && sessionData.balanceScore >= 90) {
+                const bestBalance = records.dualTask?.bestBalance || 0;
+
+                if ((sessionData.balanceScore && sessionData.balanceScore >= 90) || bestBalance >= 90) {
                     if (this.awardBadge('multitasker')) {
                         earnedBadges.push(BADGES.multitasker);
                     }

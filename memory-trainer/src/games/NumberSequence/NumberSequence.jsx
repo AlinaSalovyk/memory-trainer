@@ -1,6 +1,3 @@
-// E:\final\memory-trainer\src\games\NumberSequence\NumberSequence.jsx
-// NumberSequence.jsx - Гра на запам'ятовування цифр
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/layout/Layout';
@@ -9,6 +6,7 @@ import Button from '../../components/ui/Button';
 import Modal from '../../components/ui/Modal';
 import useGameState from '../../hooks/useGameState';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useProfile } from '../../contexts/ProfileContext';
 import storageService from '../../services/storageService';
 
 const PHASES = {
@@ -20,8 +18,8 @@ const PHASES = {
 function NumberSequence() {
     const navigate = useNavigate();
     const { accessibility } = useTheme();
-    const gameState = useGameState('number-sequence');
-
+    const gameState = useGameState('numberSequence');
+    const { refreshAll } = useProfile();
     const [gameStarted, setGameStarted] = useState(false);
     const [phase, setPhase] = useState(PHASES.MEMORIZE);
     const [level, setLevel] = useState(3);
@@ -36,29 +34,25 @@ function NumberSequence() {
 
     const inputRefs = useRef([]);
 
-    // Генерація послідовності
     const generateSequence = (length) => {
         return Array.from({ length }, () => Math.floor(Math.random() * 10));
     };
 
-    // Початок гри
     const handleStartGame = () => {
         setGameStarted(true);
         gameState.startGame();
         startRound(3);
     };
 
-    // Початок раунду
     const startRound = (currentLevel) => {
         const newSequence = generateSequence(currentLevel);
         setSequence(newSequence);
         setUserInput(Array(currentLevel).fill(''));
         setPhase(PHASES.MEMORIZE);
-        setDisplayTime(Math.min(currentLevel, 5)); // Максимум 5 секунд
+        setDisplayTime(Math.min(currentLevel, 5));
         setFeedback(null);
     };
 
-    // Таймер показу послідовності
     useEffect(() => {
         if (phase === PHASES.MEMORIZE && displayTime > 0) {
             const timer = setTimeout(() => {
@@ -67,12 +61,10 @@ function NumberSequence() {
             return () => clearTimeout(timer);
         } else if (phase === PHASES.MEMORIZE && displayTime === 0) {
             setPhase(PHASES.RECALL);
-            // Фокус на першому інпуті
             setTimeout(() => inputRefs.current[0]?.focus(), 100);
         }
     }, [phase, displayTime]);
 
-    // Обробка введення
     const handleInputChange = (index, value) => {
         if (value.length > 1) return;
         if (value !== '' && !/^\d$/.test(value)) return;
@@ -81,20 +73,17 @@ function NumberSequence() {
         newInput[index] = value;
         setUserInput(newInput);
 
-        // Автоматичний перехід до наступного поля
         if (value !== '' && index < sequence.length - 1) {
             inputRefs.current[index + 1]?.focus();
         }
     };
 
-    // Обробка клавіш
     const handleKeyDown = (index, e) => {
         if (e.key === 'Backspace' && userInput[index] === '' && index > 0) {
             inputRefs.current[index - 1]?.focus();
         }
     };
 
-    // Перевірка відповіді
     const checkAnswer = () => {
         const isCorrect = userInput.every((digit, index) =>
             digit === sequence[index].toString()
@@ -105,8 +94,6 @@ function NumberSequence() {
         if (isCorrect) {
             setCorrectStreak(correctStreak + 1);
             setFeedback({ type: 'success', message: 'Правильно! 🎉' });
-
-            // Переход на наступний рівень
             setTimeout(() => {
                 const nextLevel = level + 1;
                 setLevel(nextLevel);
@@ -118,8 +105,6 @@ function NumberSequence() {
                 type: 'error',
                 message: `Неправильно. Послідовність була: ${sequence.join(' ')}`
             });
-
-            // Завершити гру після 3 помилок
             if (incorrectCount + 1 >= 3) {
                 setTimeout(() => {
                     finishGame();
@@ -132,29 +117,31 @@ function NumberSequence() {
         }
     };
 
-    // Завершення гри
     const finishGame = () => {
         const accuracy = totalAttempts > 0
             ? Math.round((correctStreak / totalAttempts) * 100)
             : 0;
 
-        const results = gameState.finishGame({
-            longestSequence: level - 1,
-            correctStreak,
-            totalAttempts,
-            accuracy
-        });
-
-        // Оновлення рекордів
         const currentRecords = storageService.getRecords();
+        let isNewRecord = false;
+
         if (!currentRecords.numberSequence.longestSequence ||
             level - 1 > currentRecords.numberSequence.longestSequence) {
             storageService.updateRecord('numberSequence', null, {
                 longestSequence: level - 1,
                 bestAccuracy: accuracy
             });
+            isNewRecord = true;
         }
 
+        gameState.finishGame({
+            longestSequence: isNewRecord ? (level - 1) : (currentRecords.numberSequence.longestSequence || (level - 1)),
+            correctStreak,
+            totalAttempts,
+            accuracy
+        });
+
+        refreshAll();
         setShowResults(true);
     };
 
@@ -245,19 +232,20 @@ function NumberSequence() {
                 {/* Game Area */}
                 <Card padding="lg" className="min-h-[400px] flex flex-col items-center justify-center">
                     {phase === PHASES.MEMORIZE ? (
-                        <div className="text-center">
+                        <div className="text-center w-full">
                             <h2 className="text-2xl font-bold text-theme-primary mb-8">
                                 Запам'ятайте послідовність
                             </h2>
-                            <div className="flex justify-center space-x-4 mb-8">
+                            {/* АДАПТАЦІЯ: flex-wrap + gap замість space-x */}
+                            <div className="flex flex-wrap justify-center gap-3 mb-8">
                                 {sequence.map((digit, index) => (
                                     <div
                                         key={index}
                                         className={`
-                      w-16 h-20 flex items-center justify-center
-                      text-white text-4xl font-bold rounded-xl shadow-lg
-                      ${accessibility.animationsEnabled ? 'animate-bounce' : ''}
-                    `}
+                                          w-12 h-16 sm:w-16 sm:h-20 flex items-center justify-center
+                                          text-white text-2xl sm:text-4xl font-bold rounded-xl shadow-lg
+                                          ${accessibility.animationsEnabled ? 'animate-bounce' : ''}
+                                        `}
                                         style={{
                                             animationDelay: `${index * 100}ms`,
                                             backgroundColor: 'var(--accent-primary)'
@@ -279,7 +267,7 @@ function NumberSequence() {
                             <h2 className="text-2xl font-bold text-theme-primary mb-8">
                                 Введіть послідовність
                             </h2>
-                            <div className="flex justify-center space-x-3 mb-8">
+                            <div className="flex flex-wrap justify-center gap-3 mb-8">
                                 {userInput.map((digit, index) => (
                                     <input
                                         key={index}
@@ -291,25 +279,25 @@ function NumberSequence() {
                                         onChange={(e) => handleInputChange(index, e.target.value)}
                                         onKeyDown={(e) => handleKeyDown(index, e)}
                                         className="
-                      w-16 h-20 text-center text-4xl font-bold
-                      border-4 border-theme
-                      rounded-xl bg-theme-secondary
-                      text-theme-primary
-                      focus:border-[var(--border-focus)] focus:outline-none
-                      transition-colors
-                    "
+                                          w-12 h-16 sm:w-16 sm:h-20 text-center text-2xl sm:text-4xl font-bold
+                                          border-4 border-theme
+                                          rounded-xl bg-theme-secondary
+                                          text-theme-primary
+                                          focus:border-[var(--border-focus)] focus:outline-none
+                                          transition-colors
+                                        "
                                     />
                                 ))}
                             </div>
 
                             {feedback && (
                                 <div className={`
-                  p-4 rounded-xl mb-6 font-bold text-lg
-                  ${feedback.type === 'success'
+                                  p-4 rounded-xl mb-6 font-bold text-lg
+                                  ${feedback.type === 'success'
                                     ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300'
                                     : 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300'}
-                  ${accessibility.animationsEnabled ? 'animate-slide-up' : ''}
-                `}>
+                                  ${accessibility.animationsEnabled ? 'animate-slide-up' : ''}
+                                `}>
                                     {feedback.message}
                                 </div>
                             )}

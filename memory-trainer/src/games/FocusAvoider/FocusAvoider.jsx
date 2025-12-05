@@ -1,6 +1,4 @@
-// E:\final\memory-trainer\src\games\FocusAvoider\FocusAvoider.jsx
-// FocusAvoider.jsx - Гра на реакцію та уникнення
-
+// D:\react\final\memory-trainer\src\games\FocusAvoider\FocusAvoider.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/layout/Layout';
@@ -10,16 +8,18 @@ import Modal from '../../components/ui/Modal';
 import useGameState from '../../hooks/useGameState';
 import useTimer from '../../hooks/useTimer';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useProfile } from '../../contexts/ProfileContext';
 import storageService from '../../services/storageService';
 
-const GAME_DURATION = 60; // секунд
-const SPAWN_INTERVAL = 1000; // мс
-const TARGET_SPEED = 2; // пікселів за фрейм
+const GAME_DURATION = 60;
+const SPAWN_INTERVAL = 1000;
+const BASE_SPEED = 2;
 
 function FocusAvoider() {
     const navigate = useNavigate();
     const { accessibility } = useTheme();
-    const gameState = useGameState('focus-avoider');
+    const gameState = useGameState('focusAvoider');
+    const { refreshAll } = useProfile();
 
     const [gameStarted, setGameStarted] = useState(false);
     const [objects, setObjects] = useState([]);
@@ -27,8 +27,11 @@ function FocusAvoider() {
     const [clicks, setClicks] = useState({ good: 0, bad: 0 });
     const [showResults, setShowResults] = useState(false);
     const [gameArea, setGameArea] = useState({ width: 600, height: 400 });
+    const [gameOverReason, setGameOverReason] = useState('time');
 
     const { time, start: startTimer, stop: stopTimer, reset: resetTimer } = useTimer(GAME_DURATION, true);
+
+    const startTimeRef = useRef(null);
     const animationRef = useRef(null);
     const spawnTimerRef = useRef(null);
     const objectIdRef = useRef(0);
@@ -39,7 +42,6 @@ function FocusAvoider() {
         BAD: { emoji: '🔴', points: -5, color: '#ef4444' }
     };
 
-    // Оновлення розміру ігрової зони
     useEffect(() => {
         const updateSize = () => {
             if (gameAreaRef.current) {
@@ -53,19 +55,21 @@ function FocusAvoider() {
         return () => window.removeEventListener('resize', updateSize);
     }, [gameStarted]);
 
-    // Початок гри
     const handleStartGame = () => {
         setGameStarted(true);
         gameState.startGame();
         setObjects([]);
         setScore(0);
         setClicks({ good: 0, bad: 0 });
+        setGameOverReason('time');
+
+        startTimeRef.current = Date.now();
+
         resetTimer();
         startTimer();
         startSpawning();
     };
 
-    // Генерація об'єктів
     const startSpawning = () => {
         spawnTimerRef.current = setInterval(() => {
             spawnObject();
@@ -73,8 +77,11 @@ function FocusAvoider() {
     };
 
     const spawnObject = () => {
-        const isGood = Math.random() > 0.3; // 70% добрих, 30% поганих
+        const isGood = Math.random() > 0.3;
         const type = isGood ? 'GOOD' : 'BAD';
+
+        const elapsedTime = (Date.now() - startTimeRef.current) / 1000;
+        const difficultyMultiplier = 1 + (elapsedTime / 20);
 
         const newObject = {
             id: objectIdRef.current++,
@@ -82,28 +89,36 @@ function FocusAvoider() {
             x: Math.random() * (gameArea.width - 60),
             y: -60,
             vx: (Math.random() - 0.5) * 2,
-            vy: TARGET_SPEED + Math.random() * 2,
+            vy: (BASE_SPEED * difficultyMultiplier) + Math.random() * 2,
             size: 40 + Math.random() * 20,
-            rotation: Math.random() * 360
+            rotation: Math.random() * 360,
+            rotationSpeed: (Math.random() - 0.5) * 2 * difficultyMultiplier
         };
 
         setObjects(prev => [...prev, newObject]);
     };
 
-    // Анімаційний цикл
     useEffect(() => {
         if (!gameState.isPlaying) return;
 
         const animate = () => {
             setObjects(prev => {
-                return prev
-                    .map(obj => ({
-                        ...obj,
-                        x: obj.x + obj.vx,
-                        y: obj.y + obj.vy,
-                        rotation: obj.rotation + 2
-                    }))
-                    .filter(obj => obj.y < gameArea.height + 100); // Видалити об'єкти за межами
+                const movedObjects = prev.map(obj => ({
+                    ...obj,
+                    x: obj.x + obj.vx,
+                    y: obj.y + obj.vy,
+                    rotation: obj.rotation + obj.rotationSpeed
+                }));
+
+                const missedGreenObjects = movedObjects.filter(
+                    obj => obj.y >= gameArea.height + 100 && obj.type === 'GOOD'
+                );
+
+                if (missedGreenObjects.length > 0) {
+                    setScore(currentScore => currentScore - (missedGreenObjects.length * 5));
+                }
+
+                return movedObjects.filter(obj => obj.y < gameArea.height + 100);
             });
 
             animationRef.current = requestAnimationFrame(animate);
@@ -118,15 +133,24 @@ function FocusAvoider() {
         };
     }, [gameState.isPlaying, gameArea.height]);
 
-    // Таймер закінчення
+    useEffect(() => {
+        if (gameState.isPlaying && score < 0) {
+            endGame('score');
+        }
+    }, [score, gameState.isPlaying]);
+
+
     useEffect(() => {
         if (time === 0 && gameState.isPlaying) {
-            endGame();
+            endGame('time');
         }
     }, [time]);
 
-    // Клік по об'єкту
-    const handleObjectClick = (objectId, type) => {
+
+    const handleObjectClick = (e, objectId, type) => {
+        e.preventDefault();
+        e.stopPropagation();
+
         const points = OBJECT_TYPES[type].points;
         setScore(prev => prev + points);
 
@@ -136,14 +160,13 @@ function FocusAvoider() {
             bad: type === 'BAD' ? prev.bad + 1 : prev.bad
         }));
 
-        // Видалити об'єкт
         setObjects(prev => prev.filter(obj => obj.id !== objectId));
     };
 
-    // Завершення гри
-    const endGame = () => {
+    const endGame = (reason = 'time') => {
         stopTimer();
         gameState.pauseGame();
+        setGameOverReason(reason);
 
         if (spawnTimerRef.current) {
             clearInterval(spawnTimerRef.current);
@@ -157,24 +180,30 @@ function FocusAvoider() {
             ? Math.round((clicks.good / totalClicks) * 100)
             : 0;
 
-        const results = gameState.finishGame({
-            score,
-            survivalTime: GAME_DURATION - time,
-            accuracy,
-            goodClicks: clicks.good,
-            badClicks: clicks.bad
-        });
+        const survivalTime = GAME_DURATION - time;
 
-        // Оновлення рекордів
         const currentRecords = storageService.getRecords();
-        if (!currentRecords.focusAvoider.longestSurvival ||
-            GAME_DURATION - time > currentRecords.focusAvoider.longestSurvival) {
+        let isNewRecord = false;
+
+        if (reason === 'time' && (!currentRecords.focusAvoider.longestSurvival ||
+            survivalTime > currentRecords.focusAvoider.longestSurvival)) {
             storageService.updateRecord('focusAvoider', null, {
-                longestSurvival: GAME_DURATION - time,
+                longestSurvival: survivalTime,
                 bestAccuracy: accuracy
             });
+            isNewRecord = true;
         }
 
+        gameState.finishGame({
+            score: score < 0 ? 0 : score,
+            survivalTime,
+            accuracy,
+            goodClicks: clicks.good,
+            badClicks: clicks.bad,
+            longestSurvival: isNewRecord ? survivalTime : (currentRecords.focusAvoider.longestSurvival || 0)
+        });
+
+        refreshAll();
         setShowResults(true);
     };
 
@@ -199,7 +228,9 @@ function FocusAvoider() {
                         <p className="text-lg text-theme-secondary mb-8">
                             Натискайте на зелені об'єкти (+10 очок)<br />
                             Уникайте червоних об'єктів (-5 очок)<br />
-                            У вас є 60 секунд!
+                            Пропуск зеленого об'єкта (-10 очок)<br />
+                            <span className="text-red-500 font-bold">Якщо рахунок стане менше 0 — ГРУ ЗАКІНЧЕНО!</span><br />
+                            Швидкість зростає з часом!
                         </p>
                         <Button size="lg" onClick={handleStartGame}>
                             Почати гру
@@ -213,9 +244,9 @@ function FocusAvoider() {
                         <ul className="space-y-2 text-theme-secondary">
                             <li>• 🟢 Зелені об'єкти - натискайте на них (+10 очок)</li>
                             <li>• 🔴 Червоні об'єкти - уникайте їх (-5 очок)</li>
-                            <li>• Об'єкти падають зверху вниз</li>
-                            <li>• Гра триває 60 секунд</li>
-                            <li>• Мета: набрати максимум очок з високою точністю</li>
+                            <li>• ⏬ Пропуск зеленого - (-10 очок)</li>
+                            <li>• 💀 Рахунок менше нуля - миттєва поразка</li>
+                            <li>• 🚀 Швидкість падіння зростає кожну секунду</li>
                         </ul>
                     </Card>
                 </div>
@@ -230,7 +261,6 @@ function FocusAvoider() {
     return (
         <Layout>
             <div className="max-w-6xl mx-auto">
-                {/* Header */}
                 <div className="flex items-center justify-between mb-6">
                     <h1 className="text-3xl font-bold text-theme-primary">
                         🎯 Focus Avoider
@@ -240,7 +270,6 @@ function FocusAvoider() {
                     </Button>
                 </div>
 
-                {/* Stats */}
                 <div className="grid grid-cols-4 gap-4 mb-6">
                     <Card padding="md" className="text-center">
                         <div className="text-2xl mb-1">⏱️</div>
@@ -250,7 +279,10 @@ function FocusAvoider() {
 
                     <Card padding="md" className="text-center">
                         <div className="text-2xl mb-1">🎯</div>
-                        <div className="text-2xl font-bold" style={{ color: 'var(--accent-primary)' }}>{score}</div>
+                        {/* Підсвічуємо рахунок червоним, якщо він наближається до 0 */}
+                        <div className={`text-2xl font-bold ${score <= 10 ? 'text-red-500 animate-pulse' : ''}`} style={{ color: score > 10 ? 'var(--accent-primary)' : undefined }}>
+                            {score}
+                        </div>
                         <div className="text-sm text-theme-secondary">Очки</div>
                     </Card>
 
@@ -267,21 +299,20 @@ function FocusAvoider() {
                     </Card>
                 </div>
 
-                {/* Game Area */}
                 <Card padding="none">
                     <div
                         ref={gameAreaRef}
-                        className="relative bg-theme-tertiary overflow-hidden"
-                        style={{ height: '500px' }}
+                        className="relative bg-theme-tertiary overflow-hidden select-none"
+                        style={{ height: '500px', touchAction: 'none' }}
                     >
                         {objects.map(obj => (
                             <button
                                 key={obj.id}
-                                onClick={() => handleObjectClick(obj.id, obj.type)}
+                                onPointerDown={(e) => handleObjectClick(e, obj.id, obj.type)}
                                 className={`
-                  absolute cursor-pointer transition-transform
-                  ${accessibility.animationsEnabled ? 'hover:scale-110' : ''}
-                `}
+                                    absolute cursor-pointer transition-transform active:scale-95
+                                    ${accessibility.animationsEnabled ? 'hover:scale-110' : ''}
+                                `}
                                 style={{
                                     left: `${obj.x}px`,
                                     top: `${obj.y}px`,
@@ -289,70 +320,52 @@ function FocusAvoider() {
                                     height: `${obj.size}px`,
                                     transform: `rotate(${obj.rotation}deg)`,
                                     fontSize: `${obj.size}px`,
-                                    lineHeight: 1
+                                    lineHeight: 1,
+                                    border: 'none',
+                                    outline: 'none',
+                                    background: 'transparent',
+                                    padding: 0,
+                                    userSelect: 'none',
+                                    WebkitUserSelect: 'none'
                                 }}
-                                aria-label={obj.type === 'GOOD' ? 'Добрий об\'єкт' : 'Поганий об\'єкт'}
                             >
                                 {OBJECT_TYPES[obj.type].emoji}
                             </button>
                         ))}
-
-                        {/* Guide lines */}
-                        <div className="absolute inset-0 pointer-events-none opacity-20">
-                            <div
-                                className="absolute top-0 left-1/2 w-px h-full"
-                                style={{ backgroundColor: 'var(--border-color)' }}
-                            />
-                            <div
-                                className="absolute left-0 top-1/2 w-full h-px"
-                                style={{ backgroundColor: 'var(--border-color)' }}
-                            />
-                        </div>
                     </div>
                 </Card>
 
-                {/* Results Modal */}
                 <Modal
                     isOpen={showResults}
                     onClose={() => {}}
-                    title="🎯 Результати"
+                    title={gameOverReason === 'score' ? "💀 Гру закінчено" : "🎯 Результати"}
                     showCloseButton={false}
                 >
                     <div className="text-center">
                         <div className="text-6xl mb-6">
-                            {accuracy >= 90 ? '🏆' : accuracy >= 70 ? '🎉' : '👍'}
+                            {gameOverReason === 'score' ? '😵' : (accuracy >= 90 ? '🏆' : '🎉')}
                         </div>
-                        <h3 className="text-2xl font-bold text-theme-primary mb-6">
-                            Час вийшов!
+
+                        <h3 className="text-2xl font-bold text-theme-primary mb-2">
+                            {gameOverReason === 'score' ? "Ви втратили всі очки!" : "Час вийшов!"}
                         </h3>
+
+                        {gameOverReason === 'score' && (
+                            <p className="text-danger mb-6 font-bold">
+                                Будьте уважніші з червоними об'єктами!
+                            </p>
+                        )}
 
                         <div className="grid grid-cols-2 gap-4 mb-6">
                             <div className="p-4 bg-theme-tertiary rounded-xl">
-                                <div className="text-3xl font-bold" style={{ color: 'var(--accent-primary)' }}>{score}</div>
-                                <div className="text-sm text-theme-secondary">Загальний рахунок</div>
+                                <div className="text-3xl font-bold" style={{ color: 'var(--accent-primary)' }}>{score < 0 ? 0 : score}</div>
+                                <div className="text-sm text-theme-secondary">Фінальний рахунок</div>
                             </div>
                             <div className="p-4 bg-theme-tertiary rounded-xl">
-                                <div className="text-3xl font-bold" style={{ color: 'var(--accent-primary)' }}>{accuracy}%</div>
-                                <div className="text-sm text-theme-secondary">Точність</div>
-                            </div>
-                            <div className="p-4 bg-theme-tertiary rounded-xl">
-                                <div className="text-3xl font-bold text-success">{clicks.good}</div>
-                                <div className="text-sm text-theme-secondary">Добрих кліків</div>
-                            </div>
-                            <div className="p-4 bg-theme-tertiary rounded-xl">
-                                <div className="text-3xl font-bold text-danger">{clicks.bad}</div>
-                                <div className="text-sm text-theme-secondary">Поганих кліків</div>
+                                <div className="text-3xl font-bold" style={{ color: 'var(--accent-primary)' }}>{GAME_DURATION - time}с</div>
+                                <div className="text-sm text-theme-secondary">Вижито</div>
                             </div>
                         </div>
-
-                        {accuracy >= 90 && (
-                            <div className="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900 dark:bg-opacity-20 rounded-xl">
-                                <div className="text-4xl mb-2">🎖️</div>
-                                <p className="font-bold text-yellow-700 dark:text-yellow-300">
-                                    Майстер фокусування! Чудова точність!
-                                </p>
-                            </div>
-                        )}
 
                         <div className="flex space-x-4">
                             <Button variant="secondary" onClick={() => navigate('/')} fullWidth>
@@ -361,7 +374,7 @@ function FocusAvoider() {
                             <Button
                                 onClick={() => {
                                     setShowResults(false);
-                                    setGameStarted(false);
+                                    handleStartGame();
                                 }}
                                 fullWidth
                             >
