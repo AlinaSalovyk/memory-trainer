@@ -121,6 +121,12 @@ function FocusClicker() {
         };
     }, []);
 
+    const getResultColor = (time) => {
+        if (time < 450) return 'var(--accent-success)';
+        if (time < 600) return 'var(--accent-warning)';
+        return 'var(--accent-danger)';
+    };
+
     if (!gameStarted) {
         return (
             <Layout>
@@ -207,9 +213,17 @@ function FocusClicker() {
                     </Card>
                 </div>
 
-                <Card padding="none" className="relative overflow-hidden select-none" style={{ height: '500px', touchAction: 'none' }}>
+                <Card
+                    padding="none"
+                    className="relative overflow-hidden select-none"
+                    style={{
+                        height: '500px',
+                        touchAction: 'none',
+                        backgroundColor: 'var(--bg-tertiary)'
+                    }}
+                >
                     {countdown > 0 ? (
-                        <div className="absolute inset-0 flex items-center justify-center bg-theme-tertiary">
+                        <div className="absolute inset-0 flex items-center justify-center">
                             <div className="text-center">
                                 <div
                                     className={`text-9xl font-bold mb-4 ${accessibility.animationsEnabled ? 'animate-bounce' : ''}`}
@@ -223,7 +237,7 @@ function FocusClicker() {
                             </div>
                         </div>
                     ) : !target ? (
-                        <div className="absolute inset-0 flex items-center justify-center bg-theme-tertiary">
+                        <div className="absolute inset-0 flex items-center justify-center">
                             <div className="text-center">
                                 <div className={`text-6xl mb-4 ${accessibility.animationsEnabled ? 'animate-pulse' : ''}`}>
                                     👀
@@ -266,13 +280,12 @@ function FocusClicker() {
                             {reactionTimes.map((time, index) => (
                                 <div
                                     key={index}
-                                    className={`
-                    px-4 py-2 rounded-lg font-bold
-                    ${/* ОНОВЛЕНІ КОЛЬОРИ: */
-                                        time < 450 ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300' :
-                                            time < 600 ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300' :
-                                                'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300'}
-                  `}
+                                    className="px-4 py-2 rounded-lg font-bold border"
+                                    style={{
+                                        backgroundColor: 'var(--bg-tertiary)',
+                                        borderColor: getResultColor(time),
+                                        color: getResultColor(time)
+                                    }}
                                 >
                                     #{index + 1}: {time}мс
                                 </div>
@@ -294,11 +307,11 @@ function FocusClicker() {
                         </h3>
 
                         <div className="grid grid-cols-2 gap-4 mb-6">
-                            <div className="p-4 bg-theme-tertiary rounded-xl">
+                            <div className="p-4 rounded-xl" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
                                 <div className="text-3xl font-bold" style={{ color: 'var(--accent-primary)' }}>{avgReaction}мс</div>
                                 <div className="text-sm text-theme-secondary">Середня реакція</div>
                             </div>
-                            <div className="p-4 bg-theme-tertiary rounded-xl">
+                            <div className="p-4 rounded-xl" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
                                 <div className="text-3xl font-bold" style={{ color: 'var(--accent-primary)' }}>
                                     {Math.min(...reactionTimes)}мс
                                 </div>
@@ -307,9 +320,15 @@ function FocusClicker() {
                         </div>
 
                         {avgReaction < 450 && (
-                            <div className="mb-6 p-4 bg-green-50 dark:bg-green-900 dark:bg-opacity-20 rounded-xl">
+                            <div
+                                className="mb-6 p-4 rounded-xl border"
+                                style={{
+                                    backgroundColor: 'var(--bg-tertiary)',
+                                    borderColor: 'var(--accent-success)'
+                                }}
+                            >
                                 <div className="text-4xl mb-2">⚡</div>
-                                <p className="font-bold text-green-700 dark:text-green-300">
+                                <p className="font-bold" style={{ color: 'var(--accent-success)' }}>
                                     Блискавична реакція! Чудова робота!
                                 </p>
                             </div>

@@ -182,6 +182,15 @@ function WordRecall() {
         setShowResults(true);
     };
 
+    const getFeedbackStyles = (type) => {
+        const isSuccess = type === 'success';
+        return {
+            backgroundColor: 'var(--bg-tertiary)',
+            color: isSuccess ? 'var(--accent-success)' : 'var(--accent-danger)',
+            border: `1px solid ${isSuccess ? 'var(--accent-success)' : 'var(--accent-danger)'}`
+        };
+    };
+
     if (!gameStarted) {
         return (
             <Layout>
@@ -257,13 +266,18 @@ function WordRecall() {
 
                     <Card padding="md" className="text-center">
                         <div className="text-2xl mb-1">💡</div>
-                        <div className="text-2xl font-bold text-yellow-500">{hints}</div>
+                        <div className="text-2xl font-bold" style={{ color: 'var(--accent-warning)' }}>
+                            {hints}
+                        </div>
                         <div className="text-sm text-theme-secondary">Підказок</div>
                     </Card>
 
                     <Card padding="md" className="text-center">
                         <div className="text-2xl mb-1">❌</div>
-                        <div className="text-2xl font-bold text-danger">{incorrectCount}/3</div>
+                        {/* Замінили text-danger */}
+                        <div className="text-2xl font-bold" style={{ color: 'var(--accent-danger)' }}>
+                            {incorrectCount}/3
+                        </div>
                         <div className="text-sm text-theme-secondary">Помилок</div>
                     </Card>
                 </div>
@@ -310,25 +324,27 @@ function WordRecall() {
                                     placeholder="Введіть слово"
                                     className="
                                         w-full px-6 py-4 text-2xl text-center font-bold uppercase
-                                        border-4 border-theme
-                                        rounded-xl bg-theme-secondary
-                                        text-theme-primary
-                                        focus:border-[var(--border-focus)] focus:outline-none
-                                        transition-colors
+                                        border-2 rounded-xl
+                                        focus:outline-none transition-colors
                                       "
+                                    style={{
+                                        backgroundColor: 'var(--bg-secondary)',
+                                        color: 'var(--text-primary)',
+                                        borderColor: 'var(--border-color)',
+                                    }}
                                     disabled={feedback !== null}
                                 />
                             </div>
 
                             {/* Feedback */}
                             {feedback && (
-                                <div className={`
+                                <div
+                                    className={`
                                       p-4 rounded-xl mb-6 font-bold text-lg
-                                      ${feedback.type === 'success'
-                                    ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300'
-                                    : 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300'}
                                       ${accessibility.animationsEnabled ? 'animate-slide-up' : ''}
-                                    `}>
+                                    `}
+                                    style={getFeedbackStyles(feedback.type)}
+                                >
                                     {feedback.message}
                                 </div>
                             )}
@@ -384,13 +400,13 @@ function WordRecall() {
                         </h3>
 
                         <div className="grid grid-cols-2 gap-4 mb-6">
-                            <div className="p-4 bg-theme-tertiary rounded-xl">
+                            <div className="p-4 rounded-xl" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
                                 <div className="text-3xl font-bold" style={{ color: 'var(--accent-primary)' }}>{correctStreak}</div>
                                 <div className="text-sm text-theme-secondary">
                                     Правильних поспіль
                                 </div>
                             </div>
-                            <div className="p-4 bg-theme-tertiary rounded-xl">
+                            <div className="p-4 rounded-xl" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
                                 <div className="text-3xl font-bold" style={{ color: 'var(--accent-primary)' }}>
                                     {totalAttempts > 0 ? Math.round((correctStreak / totalAttempts) * 100) : 0}%
                                 </div>
@@ -399,9 +415,15 @@ function WordRecall() {
                         </div>
 
                         {correctStreak >= 15 && (
-                            <div className="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900 dark:bg-opacity-20 rounded-xl">
+                            <div
+                                className="mb-6 p-4 rounded-xl border"
+                                style={{
+                                    backgroundColor: 'var(--bg-tertiary)',
+                                    borderColor: 'var(--accent-warning)'
+                                }}
+                            >
                                 <div className="text-4xl mb-2">🎖️</div>
-                                <p className="font-bold text-yellow-700 dark:text-yellow-300">
+                                <p className="font-bold" style={{ color: 'var(--accent-warning)' }}>
                                     Чарівник слів! Фантастична серія!
                                 </p>
                             </div>

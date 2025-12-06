@@ -1,4 +1,3 @@
-// D:\react\final\memory-trainer\src\games\FocusAvoider\FocusAvoider.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/layout/Layout';
@@ -229,7 +228,9 @@ function FocusAvoider() {
                             Натискайте на зелені об'єкти (+10 очок)<br />
                             Уникайте червоних об'єктів (-5 очок)<br />
                             Пропуск зеленого об'єкта (-10 очок)<br />
-                            <span className="text-red-500 font-bold">Якщо рахунок стане менше 0 — ГРУ ЗАКІНЧЕНО!</span><br />
+                            <span className="font-bold" style={{ color: 'var(--accent-danger)' }}>
+                                Якщо рахунок стане менше 0 — ГРУ ЗАКІНЧЕНО!
+                            </span><br />
                             Швидкість зростає з часом!
                         </p>
                         <Button size="lg" onClick={handleStartGame}>
@@ -279,8 +280,12 @@ function FocusAvoider() {
 
                     <Card padding="md" className="text-center">
                         <div className="text-2xl mb-1">🎯</div>
-                        {/* Підсвічуємо рахунок червоним, якщо він наближається до 0 */}
-                        <div className={`text-2xl font-bold ${score <= 10 ? 'text-red-500 animate-pulse' : ''}`} style={{ color: score > 10 ? 'var(--accent-primary)' : undefined }}>
+                        <div
+                            className={`text-2xl font-bold ${score <= 10 ? 'animate-pulse' : ''}`}
+                            style={{
+                                color: score <= 10 ? 'var(--accent-danger)' : 'var(--accent-primary)'
+                            }}
+                        >
                             {score}
                         </div>
                         <div className="text-sm text-theme-secondary">Очки</div>
@@ -288,7 +293,9 @@ function FocusAvoider() {
 
                     <Card padding="md" className="text-center">
                         <div className="text-2xl mb-1">✅</div>
-                        <div className="text-2xl font-bold text-success">{clicks.good}</div>
+                        <div className="text-2xl font-bold" style={{ color: 'var(--accent-success)' }}>
+                            {clicks.good}
+                        </div>
                         <div className="text-sm text-theme-secondary">Добрих</div>
                     </Card>
 
@@ -302,8 +309,12 @@ function FocusAvoider() {
                 <Card padding="none">
                     <div
                         ref={gameAreaRef}
-                        className="relative bg-theme-tertiary overflow-hidden select-none"
-                        style={{ height: '500px', touchAction: 'none' }}
+                        className="relative overflow-hidden select-none"
+                        style={{
+                            height: '500px',
+                            touchAction: 'none',
+                            backgroundColor: 'var(--bg-tertiary)'
+                        }}
                     >
                         {objects.map(obj => (
                             <button
@@ -326,7 +337,8 @@ function FocusAvoider() {
                                     background: 'transparent',
                                     padding: 0,
                                     userSelect: 'none',
-                                    WebkitUserSelect: 'none'
+                                    WebkitUserSelect: 'none',
+                                    textShadow: '0 0 10px rgba(0,0,0,0.1)'
                                 }}
                             >
                                 {OBJECT_TYPES[obj.type].emoji}
@@ -351,17 +363,17 @@ function FocusAvoider() {
                         </h3>
 
                         {gameOverReason === 'score' && (
-                            <p className="text-danger mb-6 font-bold">
+                            <p className="mb-6 font-bold" style={{ color: 'var(--accent-danger)' }}>
                                 Будьте уважніші з червоними об'єктами!
                             </p>
                         )}
 
                         <div className="grid grid-cols-2 gap-4 mb-6">
-                            <div className="p-4 bg-theme-tertiary rounded-xl">
+                            <div className="p-4 rounded-xl" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
                                 <div className="text-3xl font-bold" style={{ color: 'var(--accent-primary)' }}>{score < 0 ? 0 : score}</div>
                                 <div className="text-sm text-theme-secondary">Фінальний рахунок</div>
                             </div>
-                            <div className="p-4 bg-theme-tertiary rounded-xl">
+                            <div className="p-4 rounded-xl" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
                                 <div className="text-3xl font-bold" style={{ color: 'var(--accent-primary)' }}>{GAME_DURATION - time}с</div>
                                 <div className="text-sm text-theme-secondary">Вижито</div>
                             </div>

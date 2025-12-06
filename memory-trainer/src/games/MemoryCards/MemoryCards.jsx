@@ -179,6 +179,30 @@ function MemoryCards() {
         }
     }, [matchedCards, cards.length, difficulty, moves, time, hints, pauseTimer, gameState, refreshAll]);
 
+    const getGridSettings = () => {
+        switch (difficulty) {
+            case 'hard': // 8x8
+                return {
+                    maxWidth: '460px',
+                    gap: '4px',
+                    fontSize: '1.2rem'
+                };
+            case 'medium': // 6x6
+                return {
+                    maxWidth: '420px',
+                    gap: '8px',
+                    fontSize: '1.8rem'
+                };
+            case 'easy': // 4x4
+            default:
+                return {
+                    maxWidth: '380px',
+                    gap: '12px',
+                    fontSize: '2.5rem'
+                };
+        }
+    };
+
     if (!difficulty) {
         return (
             <Layout>
@@ -239,23 +263,25 @@ function MemoryCards() {
     }
 
     const { rows, cols } = DIFFICULTY_LEVELS[difficulty];
+    const gridSettings = getGridSettings();
 
     return (
         <Layout>
             <div className="max-w-6xl mx-auto">
                 {/* Header */}
-                <div className="flex flex-col md:flex-row items-center justify-between mb-6">
+                <div className="flex flex-col md:flex-row items-center justify-between mb-4">
                     <div>
-                        <h1 className="text-3xl font-bold text-theme-primary">
+                        <h1 className="text-2xl font-bold text-theme-primary">
                             Memory Cards - {DIFFICULTY_LEVELS[difficulty].name}
                         </h1>
                     </div>
-                    <div className="flex items-center space-x-4 mt-4 md:mt-0">
-                        <Button variant="ghost" onClick={() => navigate('/')}>
+                    <div className="flex items-center space-x-4 mt-2 md:mt-0">
+                        <Button variant="ghost" size="sm" onClick={() => navigate('/')}>
                             Вихід
                         </Button>
                         <Button
                             variant="secondary"
+                            size="sm"
                             onClick={togglePause}
                             disabled={showResults}
                         >
@@ -265,44 +291,44 @@ function MemoryCards() {
                 </div>
 
                 {/* Stats Bar */}
-                <div className="grid grid-cols-3 gap-4 mb-6">
-                    <Card padding="md" className="text-center">
-                        <div className="text-2xl mb-1">⏱️</div>
+                <div className="grid grid-cols-3 gap-3 mb-4">
+                    <Card padding="sm" className="text-center">
+                        <div className="text-xl mb-1">⏱️</div>
                         <div
-                            className="text-2xl font-bold"
+                            className="text-xl font-bold"
                             style={{ color: 'var(--accent-primary)' }}
                         >
                             {formattedTime}
                         </div>
-                        <div className="text-sm text-theme-secondary">Час</div>
+                        <div className="text-xs text-theme-secondary">Час</div>
                     </Card>
 
-                    <Card padding="md" className="text-center">
-                        <div className="text-2xl mb-1">👣</div>
+                    <Card padding="sm" className="text-center">
+                        <div className="text-xl mb-1">👣</div>
                         <div
-                            className="text-2xl font-bold"
+                            className="text-xl font-bold"
                             style={{ color: 'var(--accent-primary)' }}
                         >
                             {moves}
                         </div>
-                        <div className="text-sm text-theme-secondary">Ходів</div>
+                        <div className="text-xs text-theme-secondary">Ходів</div>
                     </Card>
 
-                    <Card padding="md" className="text-center">
-                        <div className="text-2xl mb-1">💡</div>
+                    <Card padding="sm" className="text-center">
+                        <div className="text-xl mb-1">💡</div>
                         <div
-                            className="text-2xl font-bold"
+                            className="text-xl font-bold"
                             style={{ color: 'var(--accent-primary)' }}
                         >
                             {hints}
                         </div>
-                        <div className="text-sm text-theme-secondary">
+                        <div className="text-xs text-theme-secondary">
                             <Button
-                                size="sm"
+                                size="xs"
                                 variant="outline"
                                 onClick={useHint}
                                 disabled={hints === 0 || isPaused || isHintActive || matchedCards.length === cards.length}
-                                className="mt-2"
+                                className="mt-1"
                             >
                                 Підказка
                             </Button>
@@ -311,11 +337,14 @@ function MemoryCards() {
                 </div>
 
                 {/* Game Board */}
-                <Card padding="lg" className="relative">
+                <Card padding="md" className="relative flex justify-center overflow-hidden">
                     <div
-                        className={`grid gap-3 transition-opacity duration-300 ${isPaused ? 'opacity-20 blur-sm pointer-events-none' : ''}`}
+                        className={`grid transition-opacity duration-300 mx-auto ${isPaused ? 'opacity-20 blur-sm pointer-events-none' : ''}`}
                         style={{
-                            gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`
+                            gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+                            width: '100%',
+                            maxWidth: gridSettings.maxWidth,
+                            gap: gridSettings.gap
                         }}
                     >
                         {cards.map((card) => {
@@ -328,16 +357,19 @@ function MemoryCards() {
                                     onClick={() => handleCardClick(card.id)}
                                     disabled={isMatched || isPaused}
                                     className={`
-                                        aspect-square rounded-xl text-4xl font-bold flex items-center justify-center
+                                        aspect-square rounded-lg font-bold flex items-center justify-center
                                         transition-all duration-500 transform
-                                        ${isFlipped ? 'bg-theme-card' : 'bg-gradient-to-br from-primary to-purple-600'}
                                         ${isMatched ? 'opacity-50 cursor-default' : 'hover:scale-105 cursor-pointer'}
-                                        ${!isFlipped && !isMatched && !isPaused && 'shadow-lg hover:shadow-xl'}
+                                        ${!isFlipped && !isMatched && !isPaused && 'shadow hover:shadow-md'}
                                         ${accessibility.animationsEnabled ? 'animate-flip-card' : ''}
                                     `}
                                     style={{
+                                        fontSize: gridSettings.fontSize,
                                         transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
-                                        transformStyle: 'preserve-3d'
+                                        transformStyle: 'preserve-3d',
+                                        background: isFlipped ? 'var(--bg-card)' : 'var(--gradient-primary)',
+                                        border: isFlipped ? '1px solid var(--border-color)' : 'none',
+                                        boxShadow: !isFlipped ? 'var(--shadow-sm)' : 'none'
                                     }}
                                 >
                                     <span style={{ transform: 'rotateY(180deg)' }}>
@@ -348,14 +380,13 @@ function MemoryCards() {
                         })}
                     </div>
 
-                    {/* Pause Overlay (якщо пауза активна) */}
+                    {/* Pause Overlay */}
                     {isPaused && (
                         <div className="absolute inset-0 flex items-center justify-center z-10">
-                            <div className="text-center p-6 rounded-2xl bg-theme-card shadow-2xl border-2 border-theme-primary">
-                                <h2 className="text-3xl font-bold text-theme-primary mb-4">Гра на паузі</h2>
-                                <p className="text-theme-secondary mb-6">Час зупинено. Відпочиньте!</p>
-                                <Button size="lg" onClick={togglePause}>
-                                    Продовжити гру
+                            <div className="text-center p-6 rounded-2xl shadow-2xl border-2" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                                <h2 className="text-2xl font-bold text-theme-primary mb-4">Гра на паузі</h2>
+                                <Button size="md" onClick={togglePause}>
+                                    Продовжити
                                 </Button>
                             </div>
                         </div>
@@ -377,7 +408,7 @@ function MemoryCards() {
                             </h3>
 
                             <div className="grid grid-cols-2 gap-4 mb-6">
-                                <div className="p-4 bg-theme-tertiary rounded-xl">
+                                <div className="p-4 rounded-xl" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
                                     <div
                                         className="text-3xl font-bold"
                                         style={{ color: 'var(--accent-primary)' }}
@@ -386,7 +417,7 @@ function MemoryCards() {
                                     </div>
                                     <div className="text-sm text-theme-secondary">Ходів</div>
                                 </div>
-                                <div className="p-4 bg-theme-tertiary rounded-xl">
+                                <div className="p-4 rounded-xl" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
                                     <div
                                         className="text-3xl font-bold"
                                         style={{ color: 'var(--accent-primary)' }}
@@ -398,8 +429,14 @@ function MemoryCards() {
                             </div>
 
                             {sessionResults.earnedBadges?.length > 0 && (
-                                <div className="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900 dark:bg-opacity-20 rounded-xl">
-                                    <h4 className="font-bold text-theme-primary mb-2">
+                                <div
+                                    className="mb-6 p-4 rounded-xl border"
+                                    style={{
+                                        backgroundColor: 'var(--bg-tertiary)',
+                                        borderColor: 'var(--accent-warning)'
+                                    }}
+                                >
+                                    <h4 className="font-bold mb-2" style={{ color: 'var(--accent-warning)' }}>
                                         Нові бейджі! 🎖️
                                     </h4>
                                     <div className="flex justify-center space-x-2">

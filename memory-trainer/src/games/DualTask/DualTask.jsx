@@ -21,7 +21,7 @@ const COLOR_MAP = {
 
 function DualTask() {
     const navigate = useNavigate();
-    const { accessibility } = useTheme();
+    const { accessibility, theme } = useTheme();
     const gameState = useGameState('dualTask');
     const { refreshAll } = useProfile();
 
@@ -136,6 +136,19 @@ function DualTask() {
         };
     }, []);
 
+    const getFeedbackStyle = (taskId) => {
+        if (feedback?.task !== taskId) return {};
+
+        return {
+            boxShadow: feedback.correct
+                ? '0 0 0 4px var(--accent-success)'
+                : '0 0 0 4px var(--accent-danger)',
+            borderColor: feedback.correct
+                ? 'var(--accent-success)'
+                : 'var(--accent-danger)'
+        };
+    };
+
     if (!gameStarted) {
         return (
             <Layout>
@@ -224,8 +237,7 @@ function DualTask() {
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                    {/* Task 1: Numbers */}
-                    <Card className={feedback?.task === 'task1' ? (feedback.correct ? 'ring-4 ring-green-500' : 'ring-4 ring-red-500') : ''}>
+                    <Card style={{ transition: 'box-shadow 0.2s', ...getFeedbackStyle('task1') }}>
                         <h2 className="text-2xl font-bold text-theme-primary mb-4">
                             Завдання 1: Цифри
                         </h2>
@@ -238,16 +250,23 @@ function DualTask() {
                                     key={num}
                                     onClick={() => handleNumberClick(num)}
                                     className={`
-                    aspect-square rounded-lg font-bold text-xl
-                    transition-all duration-200
-                    ${num < currentNumber
-                                        ? 'bg-theme-tertiary text-theme-tertiary cursor-not-allowed'
+                                        aspect-square rounded-lg font-bold text-xl
+                                        transition-all duration-200
+                                        ${num < currentNumber
+                                        ? 'cursor-not-allowed opacity-50'
                                         : 'hover:scale-105 shadow-md'}
-                  `}
-                                    style={num >= currentNumber ? {
-                                        backgroundColor: 'var(--accent-primary)',
-                                        color: 'var(--text-inverse)'
-                                    } : {}}
+                                    `}
+                                    style={{
+                                        backgroundColor: num >= currentNumber
+                                            ? 'var(--accent-primary)'
+                                            : 'var(--bg-tertiary)',
+                                        color: num >= currentNumber
+                                            ? 'var(--text-inverse)'
+                                            : 'var(--text-tertiary)',
+                                        border: num >= currentNumber
+                                            ? 'none'
+                                            : '1px solid var(--border-color)'
+                                    }}
                                     disabled={num < currentNumber}
                                 >
                                     {num}
@@ -257,7 +276,7 @@ function DualTask() {
                     </Card>
 
                     {/* Task 2: Colors */}
-                    <Card className={feedback?.task === 'task2' ? (feedback.correct ? 'ring-4 ring-green-500' : 'ring-4 ring-red-500') : ''}>
+                    <Card style={{ transition: 'box-shadow 0.2s', ...getFeedbackStyle('task2') }}>
                         <h2 className="text-2xl font-bold text-theme-primary mb-4">
                             Завдання 2: Кольори
                         </h2>
@@ -265,10 +284,13 @@ function DualTask() {
                             Чи співпадає текст з кольором?
                         </p>
 
-                        <div className="mb-6 p-8 bg-theme-tertiary rounded-xl text-center">
+                        <div className="mb-6 p-8 rounded-xl text-center" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
                             <div
-                                className="text-6xl font-bold"
-                                style={{ color: COLOR_MAP[colorTask.color] }}
+                                className="text-6xl font-bold transition-colors duration-200"
+                                style={{
+                                    color: COLOR_MAP[colorTask.color],
+                                    textShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                                }}
                             >
                                 {colorTask.text}
                             </div>
@@ -280,6 +302,7 @@ function DualTask() {
                                 variant="success"
                                 onClick={() => handleColorResponse(true)}
                                 fullWidth
+                                style={{ backgroundColor: 'var(--accent-success)', borderColor: 'var(--accent-success)' }}
                             >
                                 ✓ Так
                             </Button>
@@ -288,6 +311,7 @@ function DualTask() {
                                 variant="danger"
                                 onClick={() => handleColorResponse(false)}
                                 fullWidth
+                                style={{ backgroundColor: 'var(--accent-danger)', borderColor: 'var(--accent-danger)' }}
                             >
                                 ✗ Ні
                             </Button>
@@ -304,7 +328,8 @@ function DualTask() {
                         <span className="text-sm font-medium text-theme-secondary">
                             Завдання 1
                         </span>
-                        <div className="flex-1 h-6 bg-theme-tertiary rounded-full overflow-hidden">
+                        {/* Фон прогрес-бару тепер використовує bg-theme-tertiary */}
+                        <div className="flex-1 h-6 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
                             <div className="h-full flex">
                                 <div
                                     className="transition-all duration-300"
@@ -314,8 +339,12 @@ function DualTask() {
                                     }}
                                 />
                                 <div
-                                    className="bg-purple-600 transition-all duration-300"
-                                    style={{ width: `${(scores.task2 / (scores.task1 + scores.task2 || 1)) * 100}%` }}
+                                    className="transition-all duration-300"
+
+                                    style={{
+                                        backgroundColor: 'var(--text-secondary)',
+                                        width: `${(scores.task2 / (scores.task1 + scores.task2 || 1)) * 100}%`
+                                    }}
                                 />
                             </div>
                         </div>
@@ -341,28 +370,31 @@ function DualTask() {
                         </h3>
 
                         <div className="grid grid-cols-2 gap-4 mb-6">
-                            <div className="p-4 bg-theme-tertiary rounded-xl">
+                            <div className="p-4 rounded-xl" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
                                 <div className="text-3xl font-bold" style={{ color: 'var(--accent-primary)' }}>{renderTotalScore}</div>
                                 <div className="text-sm text-theme-secondary">Загальний рахунок</div>
                             </div>
-                            <div className="p-4 bg-theme-tertiary rounded-xl">
+                            <div className="p-4 rounded-xl" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
                                 <div className="text-3xl font-bold" style={{ color: 'var(--accent-primary)' }}>{renderBalanceScore}%</div>
                                 <div className="text-sm text-theme-secondary">Баланс</div>
                             </div>
-                            <div className="p-4 bg-theme-tertiary rounded-xl">
+                            <div className="p-4 rounded-xl" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
                                 <div className="text-3xl font-bold" style={{ color: 'var(--accent-primary)' }}>{scores.task1}</div>
                                 <div className="text-sm text-theme-secondary">Завдання 1</div>
                             </div>
-                            <div className="p-4 bg-theme-tertiary rounded-xl">
+                            <div className="p-4 rounded-xl" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
                                 <div className="text-3xl font-bold" style={{ color: 'var(--accent-primary)' }}>{scores.task2}</div>
                                 <div className="text-sm text-theme-secondary">Завдання 2</div>
                             </div>
                         </div>
 
                         {renderBalanceScore >= 90 && (
-                            <div className="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900 dark:bg-opacity-20 rounded-xl">
+                            <div className="mb-6 p-4 rounded-xl border" style={{
+                                backgroundColor: 'var(--bg-tertiary)',
+                                borderColor: 'var(--accent-warning)'
+                            }}>
                                 <div className="text-4xl mb-2">🎖️</div>
-                                <p className="font-bold text-yellow-700 dark:text-yellow-300">
+                                <p className="font-bold" style={{ color: 'var(--accent-warning)' }}>
                                     Майстер багатозадачності! Ідеальний баланс!
                                 </p>
                             </div>

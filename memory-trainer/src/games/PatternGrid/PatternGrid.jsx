@@ -137,6 +137,15 @@ function PatternGrid() {
         setShowResults(true);
     };
 
+    const getFeedbackStyles = (type) => {
+        const isSuccess = type === 'success';
+        return {
+            backgroundColor: 'var(--bg-tertiary)',
+            color: isSuccess ? 'var(--accent-success)' : 'var(--accent-danger)',
+            border: `1px solid ${isSuccess ? 'var(--accent-success)' : 'var(--accent-danger)'}`
+        };
+    };
+
     if (!gameStarted) {
         return (
             <Layout>
@@ -210,7 +219,7 @@ function PatternGrid() {
 
                     <Card padding="md" className="text-center">
                         <div className="text-2xl mb-1">❤️</div>
-                        <div className="text-2xl font-bold text-danger">
+                        <div className="text-2xl font-bold" style={{ color: 'var(--accent-danger)' }}>
                             {'❤️'.repeat(lives)}
                         </div>
                         <div className="text-sm text-theme-secondary">Життя</div>
@@ -258,6 +267,8 @@ function PatternGrid() {
                             const isInPattern = pattern.includes(index);
                             const isSelected = playerPattern.includes(index);
                             const showPattern = phase === PHASES.MEMORIZE;
+                            const isActive = (showPattern && isInPattern) || (!showPattern && isSelected);
+                            const isInteractable = phase === PHASES.RECALL;
 
                             return (
                                 <button
@@ -266,19 +277,41 @@ function PatternGrid() {
                                     disabled={phase === PHASES.MEMORIZE}
                                     className={`
                                         aspect-square rounded-xl transition-all duration-200
-                                        ${phase === PHASES.RECALL ? 'hover:scale-105 cursor-pointer' : 'cursor-not-allowed'}
-                                        ${(showPattern && isInPattern) || (!showPattern && isSelected)
-                                        ? 'shadow-lg'
-                                        : 'bg-theme-tertiary'}
-                                        ${accessibility.animationsEnabled && ((showPattern && isInPattern) || (!showPattern && isSelected))
-                                        ? 'animate-pulse-slow'
-                                        : ''}
+                                        ${isActive ? 'shadow-lg' : ''}
+                                        ${isInteractable
+                                        ? 'hover:scale-105 cursor-pointer'
+                                        : 'cursor-not-allowed'}
+                                        ${accessibility.animationsEnabled && isActive ? 'animate-pulse-slow' : ''}
                                     `}
-                                    style={
-                                        (showPattern && isInPattern) || (!showPattern && isSelected)
-                                            ? { backgroundColor: 'var(--accent-primary)' }
-                                            : {}
-                                    }
+                                    style={{
+                                        // ВИПРАВЛЕННЯ КОНТРАСТУ:
+                                        // 1. Активна клітинка: Акцентний колір
+                                        // 2. Неактивна клітинка: bg-secondary (має кращий контраст на світлих темах ніж tertiary)
+                                        backgroundColor: isActive
+                                            ? 'var(--accent-primary)'
+                                            : 'var(--bg-secondary)',
+
+                                        // 3. Бордер: Робимо його 2px для чіткості у всіх темах
+                                        border: isActive ? 'none' : '2px solid var(--border-color)',
+
+                                        // 4. Ефект наведення через CSS змінну (для взаємодії)
+                                        // Ми не можемо використовувати :hover тут напряму в inline styles без CSS-in-JS бібліотеки,
+                                        // але ми можемо додати box-shadow для неактивних елементів
+                                        boxShadow: (!isActive && isInteractable) ? 'none' : undefined,
+                                    }}
+                                    // Додаємо клас для hover ефекту, щоб змінювати колір бордера при наведенні
+                                    onMouseEnter={(e) => {
+                                        if (!isActive && isInteractable) {
+                                            e.currentTarget.style.borderColor = 'var(--accent-primary)';
+                                            e.currentTarget.style.backgroundColor = 'var(--bg-tertiary)';
+                                        }
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        if (!isActive && isInteractable) {
+                                            e.currentTarget.style.borderColor = 'var(--border-color)';
+                                            e.currentTarget.style.backgroundColor = 'var(--bg-secondary)';
+                                        }
+                                    }}
                                 />
                             );
                         })}
@@ -286,13 +319,13 @@ function PatternGrid() {
 
                     {/* Feedback */}
                     {feedback && (
-                        <div className={`
-                            p-4 rounded-xl mb-6 font-bold text-lg text-center
-                            ${feedback.type === 'success'
-                            ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300'
-                            : 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300'}
-                            ${accessibility.animationsEnabled ? 'animate-slide-up' : ''}
-                        `}>
+                        <div
+                            className={`
+                                p-4 rounded-xl mb-6 font-bold text-lg text-center
+                                ${accessibility.animationsEnabled ? 'animate-slide-up' : ''}
+                            `}
+                            style={getFeedbackStyles(feedback.type)}
+                        >
                             {feedback.message}
                         </div>
                     )}
@@ -345,7 +378,7 @@ function PatternGrid() {
                             Чудова спроба!
                         </h3>
 
-                        <div className="p-6 bg-theme-tertiary rounded-xl mb-6">
+                        <div className="p-6 rounded-xl mb-6" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
                             <div className="text-5xl font-bold mb-2" style={{ color: 'var(--accent-primary)' }}>{level}</div>
                             <div className="text-theme-secondary">
                                 Досягнутий рівень
@@ -353,9 +386,15 @@ function PatternGrid() {
                         </div>
 
                         {level >= 10 && (
-                            <div className="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900 dark:bg-opacity-20 rounded-xl">
+                            <div
+                                className="mb-6 p-4 rounded-xl border"
+                                style={{
+                                    backgroundColor: 'var(--bg-tertiary)',
+                                    borderColor: 'var(--accent-warning)'
+                                }}
+                            >
                                 <div className="text-4xl mb-2">🎖️</div>
-                                <p className="font-bold text-yellow-700 dark:text-yellow-300">
+                                <p className="font-bold" style={{ color: 'var(--accent-warning)' }}>
                                     Експерт візуальної пам'яті!
                                 </p>
                             </div>

@@ -242,12 +242,14 @@ function SimonSays() {
                                     ? 'hover:scale-105 cursor-pointer active:scale-95'
                                     : 'cursor-not-allowed opacity-75'}
                                   ${activeColor === color.id
-                                    ? 'scale-105 shadow-[0_0_20px_rgba(255,255,255,0.5)] brightness-125 border-4 border-white'
+                                    ? 'scale-105 shadow-[0_0_20px_rgba(255,255,255,0.5)] brightness-125'
                                     : 'shadow-lg border-4 border-transparent'}
                                 `}
                                 style={{
                                     backgroundColor: color.color,
                                     opacity: activeColor === color.id ? 1 : 0.8,
+                                    borderColor: activeColor === color.id ? 'var(--text-inverse)' : 'transparent',
+                                    borderWidth: activeColor === color.id ? '4px' : '0',
                                     touchAction: 'none'
                                 }}
                                 aria-label={color.name}
@@ -276,7 +278,10 @@ function SimonSays() {
                                         style={{
                                             backgroundColor: index < playerSequence.length
                                                 ? 'var(--accent-primary)'
-                                                : 'var(--border-color)'
+                                                : 'var(--bg-tertiary)',
+                                            border: index < playerSequence.length
+                                                ? 'none'
+                                                : '1px solid var(--border-color)'
                                         }}
                                     />
                                 ))}
@@ -312,7 +317,7 @@ function SimonSays() {
                             Чудова спроба!
                         </h3>
 
-                        <div className="p-6 bg-theme-tertiary rounded-xl mb-6">
+                        <div className="p-6 rounded-xl mb-6" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
                             <div className="text-5xl font-bold mb-2" style={{ color: 'var(--accent-primary)' }}>
                                 {sequence.length}
                             </div>
@@ -322,9 +327,15 @@ function SimonSays() {
                         </div>
 
                         {sequence.length >= 10 && (
-                            <div className="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900 dark:bg-opacity-20 rounded-xl">
+                            <div
+                                className="mb-6 p-4 rounded-xl border"
+                                style={{
+                                    backgroundColor: 'var(--bg-tertiary)',
+                                    borderColor: 'var(--accent-warning)'
+                                }}
+                            >
                                 <div className="text-4xl mb-2">🎖️</div>
-                                <p className="font-bold text-yellow-700 dark:text-yellow-300">
+                                <p className="font-bold" style={{ color: 'var(--accent-warning)' }}>
                                     Майстер Simon! Неймовірна пам'ять!
                                 </p>
                             </div>

@@ -145,6 +145,15 @@ function NumberSequence() {
         setShowResults(true);
     };
 
+    const getFeedbackStyles = (type) => {
+        const isSuccess = type === 'success';
+        return {
+            backgroundColor: 'var(--bg-tertiary)',
+            color: isSuccess ? 'var(--accent-success)' : 'var(--accent-danger)',
+            border: `1px solid ${isSuccess ? 'var(--accent-success)' : 'var(--accent-danger)'}`
+        };
+    };
+
     if (!gameStarted) {
         return (
             <Layout>
@@ -224,7 +233,10 @@ function NumberSequence() {
 
                     <Card padding="md" className="text-center">
                         <div className="text-2xl mb-1">❌</div>
-                        <div className="text-2xl font-bold text-danger">{incorrectCount}/3</div>
+                        {/* Заміна text-danger на inline style */}
+                        <div className="text-2xl font-bold" style={{ color: 'var(--accent-danger)' }}>
+                            {incorrectCount}/3
+                        </div>
                         <div className="text-sm text-theme-secondary">Помилок</div>
                     </Card>
                 </div>
@@ -236,7 +248,6 @@ function NumberSequence() {
                             <h2 className="text-2xl font-bold text-theme-primary mb-8">
                                 Запам'ятайте послідовність
                             </h2>
-                            {/* АДАПТАЦІЯ: flex-wrap + gap замість space-x */}
                             <div className="flex flex-wrap justify-center gap-3 mb-8">
                                 {sequence.map((digit, index) => (
                                     <div
@@ -278,26 +289,28 @@ function NumberSequence() {
                                         value={digit}
                                         onChange={(e) => handleInputChange(index, e.target.value)}
                                         onKeyDown={(e) => handleKeyDown(index, e)}
-                                        className="
+                                        className={`
                                           w-12 h-16 sm:w-16 sm:h-20 text-center text-2xl sm:text-4xl font-bold
-                                          border-4 border-theme
-                                          rounded-xl bg-theme-secondary
-                                          text-theme-primary
-                                          focus:border-[var(--border-focus)] focus:outline-none
-                                          transition-colors
-                                        "
+                                          border-2 rounded-xl
+                                          focus:outline-none transition-colors
+                                        `}
+                                        style={{
+                                            backgroundColor: 'var(--bg-secondary)',
+                                            color: 'var(--text-primary)',
+                                            borderColor: 'var(--border-color)',
+                                        }}
                                     />
                                 ))}
                             </div>
 
                             {feedback && (
-                                <div className={`
-                                  p-4 rounded-xl mb-6 font-bold text-lg
-                                  ${feedback.type === 'success'
-                                    ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300'
-                                    : 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300'}
-                                  ${accessibility.animationsEnabled ? 'animate-slide-up' : ''}
-                                `}>
+                                <div
+                                    className={`
+                                      p-4 rounded-xl mb-6 font-bold text-lg
+                                      ${accessibility.animationsEnabled ? 'animate-slide-up' : ''}
+                                    `}
+                                    style={getFeedbackStyles(feedback.type)}
+                                >
                                     {feedback.message}
                                 </div>
                             )}
@@ -343,13 +356,13 @@ function NumberSequence() {
                         </h3>
 
                         <div className="grid grid-cols-2 gap-4 mb-6">
-                            <div className="p-4 bg-theme-tertiary rounded-xl">
+                            <div className="p-4 rounded-xl" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
                                 <div className="text-3xl font-bold" style={{ color: 'var(--accent-primary)' }}>{level - 1}</div>
                                 <div className="text-sm text-theme-secondary">
                                     Найдовша послідовність
                                 </div>
                             </div>
-                            <div className="p-4 bg-theme-tertiary rounded-xl">
+                            <div className="p-4 rounded-xl" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
                                 <div className="text-3xl font-bold" style={{ color: 'var(--accent-primary)' }}>{correctStreak}</div>
                                 <div className="text-sm text-theme-secondary">
                                     Правильних відповідей
@@ -358,9 +371,15 @@ function NumberSequence() {
                         </div>
 
                         {correctStreak >= 10 && (
-                            <div className="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900 dark:bg-opacity-20 rounded-xl">
+                            <div
+                                className="mb-6 p-4 rounded-xl border"
+                                style={{
+                                    backgroundColor: 'var(--bg-tertiary)',
+                                    borderColor: 'var(--accent-warning)'
+                                }}
+                            >
                                 <div className="text-4xl mb-2">🎖️</div>
-                                <p className="font-bold text-yellow-700 dark:text-yellow-300">
+                                <p className="font-bold" style={{ color: 'var(--accent-warning)' }}>
                                     Чудова робота! 10+ правильних відповідей поспіль!
                                 </p>
                             </div>
