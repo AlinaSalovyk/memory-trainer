@@ -6,7 +6,8 @@ import {
     FaFont,
     FaLightbulb,
     FaFileLines,
-    FaTrashCan
+    FaTrashCan,
+    FaKeyboard
 } from 'react-icons/fa6';
 import Layout from '../components/layout/Layout';
 import Card from '../components/ui/Card';
@@ -60,7 +61,26 @@ function Settings() {
                 <p className="mb-8 text-theme-secondary">
                     Персоналізуйте свій досвід використання застосунку
                 </p>
-
+                <Card className="mb-6">
+                    <h2 className="text-2xl font-bold mb-4 flex items-center text-theme-primary">
+                        <FaKeyboard className="mr-2" />
+                        Гарячі клавіші
+                    </h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="p-4 rounded-xl border border-theme bg-theme-tertiary flex items-center justify-between">
+                            <span className="font-medium text-theme-primary">Вимкн/Увімк звук</span>
+                            <kbd className="px-3 py-1 bg-theme-card border border-theme rounded-lg font-mono text-sm shadow-sm">M</kbd>
+                        </div>
+                        <div className="p-4 rounded-xl border border-theme bg-theme-tertiary flex items-center justify-between">
+                            <span className="font-medium text-theme-primary">Пауза / Продовжити</span>
+                            <div className="flex gap-2">
+                                <kbd className="px-3 py-1 bg-theme-card border border-theme rounded-lg font-mono text-sm shadow-sm">P</kbd>
+                                <span className="text-theme-secondary">/</span>
+                                <kbd className="px-3 py-1 bg-theme-card border border-theme rounded-lg font-mono text-sm shadow-sm">Esc</kbd>
+                            </div>
+                        </div>
+                    </div>
+                </Card>
                 <Card className="mb-6">
                     <div className="flex items-center mb-6">
                         <FaPalette className="mr-3 text-4xl text-primary" />

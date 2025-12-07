@@ -41,8 +41,8 @@ function SimonSays() {
     const [activeColor, setActiveColor] = useState(null);
     const [showResults, setShowResults] = useState(false);
     const [isPlayingSequence, setIsPlayingSequence] = useState(false);
-
     const audioContextRef = useRef(null);
+    const isPausedRef = useRef(false);
 
     useEffect(() => {
         if (accessibility.soundEnabled) {
@@ -54,6 +54,10 @@ function SimonSays() {
             }
         };
     }, [accessibility.soundEnabled]);
+
+    useEffect(() => {
+        isPausedRef.current = gameState.isPaused;
+    }, [gameState.isPaused]);
 
     const playSound = (frequency, type = 'sine', duration = 0.3) => {
         if (!accessibility.soundEnabled || !audioContextRef.current) return;
@@ -87,6 +91,14 @@ function SimonSays() {
         startNewRound([]);
     };
 
+    const togglePause = () => {
+        if (gameState.isPaused) {
+            gameState.resumeGame();
+        } else {
+            gameState.pauseGame();
+        }
+    };
+
     const startNewRound = (currentSequence) => {
         const newColor = Math.floor(Math.random() * 4);
         const newSequence = [...currentSequence, newColor];
@@ -101,6 +113,11 @@ function SimonSays() {
         const speed = Math.max(200, 600 - seq.length * 20);
 
         for (let i = 0; i < seq.length; i++) {
+            while (isPausedRef.current) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                if (!gameStarted) return;
+            }
+
             setActiveColor(seq[i]);
             playSound(COLORS[seq[i]].sound, 'sine', speed / 1000);
             await new Promise(resolve => setTimeout(resolve, speed));
@@ -112,7 +129,7 @@ function SimonSays() {
     };
 
     const handleColorClick = (colorId) => {
-        if (phase !== PHASES.PLAYER_TURN || isPlayingSequence) return;
+        if (phase !== PHASES.PLAYER_TURN || isPlayingSequence || gameState.isPaused) return; // Блокуємо на паузі
 
         setActiveColor(colorId);
         playSound(COLORS[colorId].sound);
@@ -222,9 +239,19 @@ function SimonSays() {
                             {phase === PHASES.READY && 'Приготуйтесь...'}
                         </p>
                     </div>
-                    <Button variant="ghost" onClick={() => navigate('/')}>
-                        Вихід
-                    </Button>
+                    <div className="flex items-center space-x-4">
+                        <Button variant="ghost" onClick={() => navigate('/')}>
+                            Вихід
+                        </Button>
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={togglePause}
+                            disabled={showResults}
+                        >
+                            {gameState.isPaused ? '▶️ Продовжити' : '⏸ Пауза'}
+                        </Button>
+                    </div>
                 </div>
 
                 {/* Stats */}
@@ -243,17 +270,17 @@ function SimonSays() {
                 </div>
 
                 {/* Game Board */}
-                <Card padding="lg">
-                    <div className="grid grid-cols-2 gap-4 mb-6 max-w-md mx-auto">
+                <Card padding="lg" className="relative overflow-hidden">
+                    <div className={`grid grid-cols-2 gap-4 mb-6 max-w-md mx-auto transition-opacity ${gameState.isPaused ? 'opacity-20 blur-sm pointer-events-none' : ''}`}>
                         {COLORS.map((color) => (
                             <button
                                 key={color.id}
                                 onPointerDown={(e) => { e.preventDefault(); handleColorClick(color.id); }}
-                                disabled={phase !== PHASES.PLAYER_TURN || isPlayingSequence}
+                                disabled={phase !== PHASES.PLAYER_TURN || isPlayingSequence || gameState.isPaused} // Блокування
                                 className={`
                                   aspect-square rounded-2xl font-bold text-2xl
                                   transition-all duration-100 transform
-                                  ${phase === PHASES.PLAYER_TURN && !isPlayingSequence
+                                  ${phase === PHASES.PLAYER_TURN && !isPlayingSequence && !gameState.isPaused
                                     ? 'hover:scale-105 cursor-pointer active:scale-95'
                                     : 'cursor-not-allowed opacity-75'}
                                   ${activeColor === color.id
@@ -280,7 +307,7 @@ function SimonSays() {
                     </div>
 
                     {/* Player Progress */}
-                    {phase === PHASES.PLAYER_TURN && playerSequence.length > 0 && (
+                    {phase === PHASES.PLAYER_TURN && playerSequence.length > 0 && !gameState.isPaused && (
                         <div className="text-center">
                             <p className="text-theme-secondary mb-2">
                                 Ваш прогрес: {playerSequence.length} / {sequence.length}
@@ -300,6 +327,18 @@ function SimonSays() {
                                         }}
                                     />
                                 ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Pause Overlay */}
+                    {gameState.isPaused && (
+                        <div className="absolute inset-0 flex items-center justify-center z-10">
+                            <div className="text-center p-6 rounded-2xl shadow-2xl border-2" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                                <h2 className="text-2xl font-bold text-theme-primary mb-4">Гра на паузі</h2>
+                                <Button size="md" onClick={togglePause}>
+                                    Продовжити
+                                </Button>
                             </div>
                         </div>
                     )}

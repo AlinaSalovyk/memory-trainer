@@ -97,7 +97,17 @@ function NumberSequence() {
         setFeedback(null);
     };
 
+    const togglePause = () => {
+        if (gameState.isPaused) {
+            gameState.resumeGame();
+        } else {
+            gameState.pauseGame();
+        }
+    };
+
     useEffect(() => {
+        if (gameState.isPaused) return;
+
         if (phase === PHASES.MEMORIZE && displayTime > 0) {
 
             playSound(SOUNDS.TICK, 'sine', 0.05);
@@ -112,9 +122,11 @@ function NumberSequence() {
             setPhase(PHASES.RECALL);
             setTimeout(() => inputRefs.current[0]?.focus(), 100);
         }
-    }, [phase, displayTime]);
+    }, [phase, displayTime, gameState.isPaused]);
 
     const handleInputChange = (index, value) => {
+        if (gameState.isPaused) return;
+
         if (value.length > 1) return;
         if (value !== '' && !/^\d$/.test(value)) return;
 
@@ -132,6 +144,8 @@ function NumberSequence() {
     };
 
     const handleKeyDown = (index, e) => {
+        if (gameState.isPaused) return;
+
         if (e.key === 'Backspace' && userInput[index] === '' && index > 0) {
             inputRefs.current[index - 1]?.focus();
         }
@@ -275,9 +289,19 @@ function NumberSequence() {
                             Рівень {level} • {sequence.length} цифр
                         </p>
                     </div>
-                    <Button variant="ghost" onClick={() => navigate('/')}>
-                        Вихід
-                    </Button>
+                    <div className="flex items-center space-x-4">
+                        <Button variant="ghost" onClick={() => navigate('/')}>
+                            Вихід
+                        </Button>
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={togglePause}
+                            disabled={showResults}
+                        >
+                            {gameState.isPaused ? '▶️ Продовжити' : '⏸ Пауза'}
+                        </Button>
+                    </div>
                 </div>
 
                 {/* Stats */}
@@ -304,9 +328,9 @@ function NumberSequence() {
                 </div>
 
                 {/* Game Area */}
-                <Card padding="lg" className="min-h-[400px] flex flex-col items-center justify-center">
+                <Card padding="lg" className="min-h-[400px] flex flex-col items-center justify-center relative overflow-hidden">
                     {phase === PHASES.MEMORIZE ? (
-                        <div className="text-center w-full">
+                        <div className={`text-center w-full transition-opacity ${gameState.isPaused ? 'opacity-20 blur-sm' : ''}`}>
                             <h2 className="text-2xl font-bold text-theme-primary mb-8">
                                 Запам'ятайте послідовність
                             </h2>
@@ -336,7 +360,7 @@ function NumberSequence() {
                             </p>
                         </div>
                     ) : (
-                        <div className="text-center w-full">
+                        <div className={`text-center w-full transition-opacity ${gameState.isPaused ? 'opacity-20 blur-sm' : ''}`}>
                             <h2 className="text-2xl font-bold text-theme-primary mb-8">
                                 Введіть послідовність
                             </h2>
@@ -351,10 +375,12 @@ function NumberSequence() {
                                         value={digit}
                                         onChange={(e) => handleInputChange(index, e.target.value)}
                                         onKeyDown={(e) => handleKeyDown(index, e)}
+                                        disabled={gameState.isPaused} // Блокуємо інпут
                                         className={`
                                           w-12 h-16 sm:w-16 sm:h-20 text-center text-2xl sm:text-4xl font-bold
                                           border-2 rounded-xl
                                           focus:outline-none transition-colors
+                                          disabled:opacity-50 disabled:cursor-not-allowed
                                         `}
                                         style={{
                                             backgroundColor: 'var(--bg-secondary)',
@@ -381,11 +407,23 @@ function NumberSequence() {
                                 <Button
                                     size="lg"
                                     onClick={checkAnswer}
-                                    disabled={userInput.some(d => d === '')}
+                                    disabled={userInput.some(d => d === '') || gameState.isPaused}
                                 >
                                     Перевірити
                                 </Button>
                             )}
+                        </div>
+                    )}
+
+                    {/* Pause Overlay */}
+                    {gameState.isPaused && (
+                        <div className="absolute inset-0 flex items-center justify-center z-10">
+                            <div className="text-center p-6 rounded-2xl shadow-2xl border-2" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                                <h2 className="text-2xl font-bold text-theme-primary mb-4">Гра на паузі</h2>
+                                <Button size="md" onClick={togglePause}>
+                                    Продовжити
+                                </Button>
+                            </div>
                         </div>
                     )}
                 </Card>

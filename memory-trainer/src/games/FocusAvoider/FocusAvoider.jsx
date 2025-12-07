@@ -36,13 +36,15 @@ function FocusAvoider() {
     const [gameArea, setGameArea] = useState({ width: 600, height: 400 });
     const [gameOverReason, setGameOverReason] = useState('time');
 
-    const { time, start: startTimer, stop: stopTimer, reset: resetTimer } = useTimer(GAME_DURATION, true);
+    const { time, start: startTimer, stop: stopTimer, reset: resetTimer, pause: pauseTimer, resume: resumeTimer } = useTimer(GAME_DURATION, true);
 
     const startTimeRef = useRef(null);
     const animationRef = useRef(null);
     const spawnTimerRef = useRef(null);
     const objectIdRef = useRef(0);
     const gameAreaRef = useRef(null);
+    const pausedTimeRef = useRef(0);
+    const pauseStartRef = useRef(0);
 
     const audioContextRef = useRef(null);
 
@@ -98,6 +100,13 @@ function FocusAvoider() {
         return () => window.removeEventListener('resize', updateSize);
     }, [gameStarted]);
 
+    const startSpawning = () => {
+        if (spawnTimerRef.current) clearInterval(spawnTimerRef.current);
+        spawnTimerRef.current = setInterval(() => {
+            spawnObject();
+        }, SPAWN_INTERVAL);
+    };
+
     const handleStartGame = () => {
         setGameStarted(true);
         gameState.startGame();
@@ -107,6 +116,7 @@ function FocusAvoider() {
         setGameOverReason('time');
 
         startTimeRef.current = Date.now();
+        pausedTimeRef.current = 0;
 
         resetTimer();
         startTimer();
@@ -114,17 +124,41 @@ function FocusAvoider() {
         playSound(SOUNDS.START, 'sine', 0.5);
     };
 
-    const startSpawning = () => {
-        spawnTimerRef.current = setInterval(() => {
-            spawnObject();
-        }, SPAWN_INTERVAL);
+    const togglePause = () => {
+        if (gameState.isPaused) {
+            gameState.resumeGame();
+        } else {
+            gameState.pauseGame();
+        }
     };
+
+    useEffect(() => {
+        if (gameState.isPaused) {
+            pauseTimer();
+            if (spawnTimerRef.current) {
+                clearInterval(spawnTimerRef.current);
+                spawnTimerRef.current = null;
+            }
+            pauseStartRef.current = Date.now();
+
+        } else if (gameState.isPlaying && gameStarted) {
+            resumeTimer();
+            if (!spawnTimerRef.current) {
+                startSpawning();
+            }
+            if (pauseStartRef.current > 0) {
+                pausedTimeRef.current += (Date.now() - pauseStartRef.current);
+                pauseStartRef.current = 0;
+            }
+        }
+    }, [gameState.isPaused, gameState.isPlaying, gameStarted, pauseTimer, resumeTimer]);
 
     const spawnObject = () => {
         const isGood = Math.random() > 0.3;
         const type = isGood ? 'GOOD' : 'BAD';
 
-        const elapsedTime = (Date.now() - startTimeRef.current) / 1000;
+        const activeTime = Date.now() - startTimeRef.current - pausedTimeRef.current;
+        const elapsedTime = activeTime / 1000;
         const difficultyMultiplier = 1 + (elapsedTime / 20);
 
         const newObject = {
@@ -196,6 +230,8 @@ function FocusAvoider() {
         e.preventDefault();
         e.stopPropagation();
 
+        if (gameState.isPaused) return;
+
         if (type === 'GOOD') {
             playSound(SOUNDS.GOOD, 'sine', 0.1);
         } else {
@@ -220,9 +256,9 @@ function FocusAvoider() {
         setGameOverReason(reason);
 
         if (reason === 'score') {
-            playSound(SOUNDS.GAME_OVER, 'sawtooth', 0.8); // Довгий неприємний звук
+            playSound(SOUNDS.GAME_OVER, 'sawtooth', 0.8);
         } else {
-            playSound(SOUNDS.START, 'sine', 0.5); // Звичайний звук завершення
+            playSound(SOUNDS.START, 'sine', 0.5);
         }
 
         if (spawnTimerRef.current) {
@@ -324,9 +360,19 @@ function FocusAvoider() {
                     <h1 className="text-3xl font-bold text-theme-primary">
                         🎯 Focus Avoider
                     </h1>
-                    <Button variant="ghost" onClick={() => navigate('/')}>
-                        Вихід
-                    </Button>
+                    <div className="flex items-center space-x-4">
+                        <Button variant="ghost" onClick={() => navigate('/')}>
+                            Вихід
+                        </Button>
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={togglePause}
+                            disabled={showResults}
+                        >
+                            {gameState.isPaused ? '▶️ Продовжити' : '⏸ Пауза'}
+                        </Button>
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-4 gap-4 mb-6">
@@ -367,7 +413,7 @@ function FocusAvoider() {
                 <Card padding="none">
                     <div
                         ref={gameAreaRef}
-                        className="relative overflow-hidden select-none"
+                        className={`relative overflow-hidden select-none transition-opacity duration-300 ${gameState.isPaused ? 'opacity-50' : ''}`}
                         style={{
                             height: '500px',
                             touchAction: 'none',
@@ -381,6 +427,7 @@ function FocusAvoider() {
                                 className={`
                                     absolute cursor-pointer transition-transform active:scale-95
                                     ${accessibility.animationsEnabled ? 'hover:scale-110' : ''}
+                                    ${gameState.isPaused ? 'cursor-default pointer-events-none' : ''}
                                 `}
                                 style={{
                                     left: `${obj.x}px`,
@@ -402,6 +449,18 @@ function FocusAvoider() {
                                 {OBJECT_TYPES[obj.type].emoji}
                             </button>
                         ))}
+
+                        {/* Pause Overlay */}
+                        {gameState.isPaused && (
+                            <div className="absolute inset-0 flex items-center justify-center z-10">
+                                <div className="text-center p-6 rounded-2xl shadow-2xl border-2" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                                    <h2 className="text-2xl font-bold text-theme-primary mb-4">Гра на паузі</h2>
+                                    <Button size="md" onClick={togglePause}>
+                                        Продовжити
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </Card>
 

@@ -139,7 +139,16 @@ function WordRecall() {
         setUsedWords([...usedWords, word]);
     };
 
+    const togglePause = () => {
+        if (gameState.isPaused) {
+            gameState.resumeGame();
+        } else {
+            gameState.pauseGame();
+        }
+    };
     useEffect(() => {
+        if (gameState.isPaused) return;
+
         if (phase === PHASES.DISPLAY && displayTime > 0) {
             playSound(SOUNDS.TICK, 'sine', 0.05);
 
@@ -155,7 +164,7 @@ function WordRecall() {
             setPhase(PHASES.RECALL);
             setTimeout(() => inputRef.current?.focus(), 100);
         }
-    }, [phase, displayTime]);
+    }, [phase, displayTime, gameState.isPaused]);
 
     const checkAnswer = () => {
         const isCorrect = userInput.toUpperCase() === currentWord;
@@ -194,7 +203,7 @@ function WordRecall() {
     };
 
     const showHint = () => {
-        if (hints <= 0) return;
+        if (hints <= 0 || gameState.isPaused) return;
 
         playSound(SOUNDS.HINT, 'sine', 0.3);
 
@@ -252,6 +261,8 @@ function WordRecall() {
     };
 
     const handleInputChange = (e) => {
+        if (gameState.isPaused) return;
+
         const newValue = e.target.value.toUpperCase();
 
         if (newValue.length > userInput.length) {
@@ -313,9 +324,19 @@ function WordRecall() {
                     <h1 className="text-3xl font-bold text-theme-primary">
                         📝 Word Recall
                     </h1>
-                    <Button variant="ghost" onClick={() => navigate('/')}>
-                        Вихід
-                    </Button>
+                    <div className="flex items-center space-x-4">
+                        <Button variant="ghost" onClick={() => navigate('/')}>
+                            Вихід
+                        </Button>
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={togglePause}
+                            disabled={showResults}
+                        >
+                            {gameState.isPaused ? '▶️ Продовжити' : '⏸ Пауза'}
+                        </Button>
+                    </div>
                 </div>
 
                 {/* Stats */}
@@ -352,9 +373,9 @@ function WordRecall() {
                 </div>
 
                 {/* Game Area */}
-                <Card padding="lg" className="min-h-[400px] flex flex-col items-center justify-center">
+                <Card padding="lg" className="min-h-[400px] flex flex-col items-center justify-center relative overflow-hidden">
                     {phase === PHASES.DISPLAY ? (
-                        <div className="text-center">
+                        <div className={`text-center transition-opacity ${gameState.isPaused ? 'opacity-20 blur-sm' : ''}`}>
                             <h2 className="text-2xl font-bold text-theme-primary mb-8">
                                 Запам'ятайте слово
                             </h2>
@@ -372,7 +393,7 @@ function WordRecall() {
                             </p>
                         </div>
                     ) : (
-                        <div className="text-center w-full">
+                        <div className={`text-center w-full transition-opacity ${gameState.isPaused ? 'opacity-20 blur-sm' : ''}`}>
                             <h2 className="text-2xl font-bold text-theme-primary mb-8">
                                 Заповніть пропущені літери
                             </h2>
@@ -389,19 +410,20 @@ function WordRecall() {
                                     type="text"
                                     value={userInput}
                                     onChange={handleInputChange}
-                                    onKeyPress={(e) => e.key === 'Enter' && !feedback && checkAnswer()}
+                                    onKeyPress={(e) => e.key === 'Enter' && !feedback && !gameState.isPaused && checkAnswer()} // Додаткова перевірка
                                     placeholder="Введіть слово"
                                     className="
                                         w-full px-6 py-4 text-2xl text-center font-bold uppercase
                                         border-2 rounded-xl
                                         focus:outline-none transition-colors
+                                        disabled:opacity-50 disabled:cursor-not-allowed
                                       "
                                     style={{
                                         backgroundColor: 'var(--bg-secondary)',
                                         color: 'var(--text-primary)',
                                         borderColor: 'var(--border-color)',
                                     }}
-                                    disabled={feedback !== null}
+                                    disabled={feedback !== null || gameState.isPaused} // Блокування
                                 />
                             </div>
 
@@ -424,19 +446,31 @@ function WordRecall() {
                                     <Button
                                         variant="secondary"
                                         onClick={showHint}
-                                        disabled={hints <= 0 || maskedWord.indexOf('_') === -1}
+                                        disabled={hints <= 0 || maskedWord.indexOf('_') === -1 || gameState.isPaused} // Блокування
                                     >
                                         💡 Підказка ({hints})
                                     </Button>
                                     <Button
                                         onClick={checkAnswer}
-                                        disabled={userInput.length === 0}
+                                        disabled={userInput.length === 0 || gameState.isPaused} // Блокування
                                         fullWidth
                                     >
                                         Перевірити
                                     </Button>
                                 </div>
                             )}
+                        </div>
+                    )}
+
+                    {/* Pause Overlay */}
+                    {gameState.isPaused && (
+                        <div className="absolute inset-0 flex items-center justify-center z-10">
+                            <div className="text-center p-6 rounded-2xl shadow-2xl border-2" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                                <h2 className="text-2xl font-bold text-theme-primary mb-4">Гра на паузі</h2>
+                                <Button size="md" onClick={togglePause}>
+                                    Продовжити
+                                </Button>
+                            </div>
                         </div>
                     )}
                 </Card>

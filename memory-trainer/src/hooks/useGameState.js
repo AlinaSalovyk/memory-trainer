@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import storageService from '../services/storageService';
 import badgeService from '../services/badgeService';
 
@@ -34,6 +34,22 @@ function useGameState(gameId, initialGameData = {}) {
             setStatus(GAME_STATUS.PLAYING);
         }
     }, [status]);
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
+
+            if (e.code === 'KeyP' || e.code === 'Escape') {
+                if (status === GAME_STATUS.PLAYING) {
+                    pauseGame();
+                } else if (status === GAME_STATUS.PAUSED) {
+                    resumeGame();
+                }
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [status, pauseGame, resumeGame]);
 
     const finishGame = useCallback((finalData = {}) => {
         setStatus(GAME_STATUS.FINISHED);

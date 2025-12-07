@@ -106,7 +106,17 @@ function PatternGrid() {
         setFeedback(null);
     };
 
+    const togglePause = () => {
+        if (gameState.isPaused) {
+            gameState.resumeGame();
+        } else {
+            gameState.pauseGame();
+        }
+    };
+
     useEffect(() => {
+        if (gameState.isPaused) return;
+
         if (phase === PHASES.MEMORIZE && displayTime > 0) {
             playSound(SOUNDS.TICK, 'sine', 0.05);
 
@@ -118,10 +128,10 @@ function PatternGrid() {
             playSound(SOUNDS.START_RECALL, 'triangle', 0.2);
             setPhase(PHASES.RECALL);
         }
-    }, [phase, displayTime]);
+    }, [phase, displayTime, gameState.isPaused]);
 
     const handleCellClick = (cellIndex) => {
-        if (phase !== PHASES.RECALL) return;
+        if (phase !== PHASES.RECALL || gameState.isPaused) return;
 
         playSound(SOUNDS.CLICK, 'square', 0.05);
 
@@ -261,9 +271,19 @@ function PatternGrid() {
                             Рівень {level} • Сітка {gridSize}x{gridSize}
                         </p>
                     </div>
-                    <Button variant="ghost" onClick={() => navigate('/')}>
-                        Вихід
-                    </Button>
+                    <div className="flex items-center space-x-4">
+                        <Button variant="ghost" onClick={() => navigate('/')}>
+                            Вихід
+                        </Button>
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={togglePause}
+                            disabled={showResults}
+                        >
+                            {gameState.isPaused ? '▶️ Продовжити' : '⏸ Пауза'}
+                        </Button>
+                    </div>
                 </div>
 
                 {/* Stats */}
@@ -290,9 +310,9 @@ function PatternGrid() {
                 </div>
 
                 {/* Game Area */}
-                <Card padding="lg">
+                <Card padding="lg" className="relative overflow-hidden">
                     {phase === PHASES.MEMORIZE ? (
-                        <div className="text-center mb-6">
+                        <div className={`text-center mb-6 transition-opacity ${gameState.isPaused ? 'opacity-20 blur-sm' : ''}`}>
                             <h2 className="text-2xl font-bold text-theme-primary mb-4">
                                 Запам'ятайте патерн
                             </h2>
@@ -302,7 +322,7 @@ function PatternGrid() {
                             <p className="text-theme-secondary">секунд</p>
                         </div>
                     ) : (
-                        <div className="text-center mb-6">
+                        <div className={`text-center mb-6 transition-opacity ${gameState.isPaused ? 'opacity-20 blur-sm' : ''}`}>
                             <h2 className="text-2xl font-bold text-theme-primary mb-2">
                                 Відтворіть патерн
                             </h2>
@@ -314,7 +334,7 @@ function PatternGrid() {
 
                     {/* Grid */}
                     <div
-                        className="grid gap-2 mx-auto mb-6"
+                        className={`grid gap-2 mx-auto mb-6 transition-opacity ${gameState.isPaused ? 'opacity-20 blur-sm' : ''}`}
                         style={{
                             gridTemplateColumns: `repeat(${gridSize}, minmax(0, 1fr))`,
                             maxWidth: `${gridSize * 70}px`
@@ -331,11 +351,11 @@ function PatternGrid() {
                                 <button
                                     key={index}
                                     onClick={() => handleCellClick(index)}
-                                    disabled={phase === PHASES.MEMORIZE}
+                                    disabled={phase === PHASES.MEMORIZE || gameState.isPaused} // Блокуємо на паузі
                                     className={`
                                         aspect-square rounded-xl transition-all duration-200
                                         ${isActive ? 'shadow-lg' : ''}
-                                        ${isInteractable
+                                        ${isInteractable && !gameState.isPaused
                                         ? 'hover:scale-105 cursor-pointer'
                                         : 'cursor-not-allowed'}
                                         ${accessibility.animationsEnabled && isActive ? 'animate-pulse-slow' : ''}
@@ -348,7 +368,7 @@ function PatternGrid() {
                                         boxShadow: (!isActive && isInteractable) ? 'none' : undefined,
                                     }}
                                     onMouseEnter={(e) => {
-                                        if (!isActive && isInteractable) {
+                                        if (!isActive && isInteractable && !gameState.isPaused) {
                                             e.currentTarget.style.borderColor = 'var(--accent-primary)';
                                             e.currentTarget.style.backgroundColor = 'var(--bg-tertiary)';
                                         }
@@ -384,16 +404,29 @@ function PatternGrid() {
                                 variant="secondary"
                                 onClick={() => setPlayerPattern([])}
                                 fullWidth
+                                disabled={gameState.isPaused}
                             >
                                 Очистити
                             </Button>
                             <Button
                                 onClick={checkAnswer}
-                                disabled={playerPattern.length === 0}
+                                disabled={playerPattern.length === 0 || gameState.isPaused}
                                 fullWidth
                             >
                                 Перевірити ({playerPattern.length}/{pattern.length})
                             </Button>
+                        </div>
+                    )}
+
+                    {/* Pause Overlay */}
+                    {gameState.isPaused && (
+                        <div className="absolute inset-0 flex items-center justify-center z-10">
+                            <div className="text-center p-6 rounded-2xl shadow-2xl border-2" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                                <h2 className="text-2xl font-bold text-theme-primary mb-4">Гра на паузі</h2>
+                                <Button size="md" onClick={togglePause}>
+                                    Продовжити
+                                </Button>
+                            </div>
                         </div>
                     )}
                 </Card>

@@ -12,11 +12,10 @@ import storageService from '../../services/storageService';
 const TOTAL_ROUNDS = 10;
 const COLORS = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
 
-// Константи для звуків
 const SOUNDS = {
-    COUNTDOWN: 440,  // "Тік" таймера
-    GO: 880,         // "Старт"
-    GAME_OVER: 600   // Завершення
+    COUNTDOWN: 440,
+    GO: 880,
+    GAME_OVER: 600
 };
 
 function FocusClicker() {
@@ -30,8 +29,10 @@ function FocusClicker() {
     const [reactionTimes, setReactionTimes] = useState([]);
     const [showResults, setShowResults] = useState(false);
     const [countdown, setCountdown] = useState(3);
+
     const startTimeRef = useRef(null);
     const timeoutRef = useRef(null);
+    const countdownIntervalRef = useRef(null); // Реф для інтервалу
     const audioContextRef = useRef(null);
 
     useEffect(() => {
@@ -68,15 +69,13 @@ function FocusClicker() {
         }
     };
 
-    const handleStartGame = () => {
-        setCountdown(3);
+    const startCountdown = () => {
+        if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
 
-        playSound(SOUNDS.COUNTDOWN, 'triangle', 0.1);
-
-        const countdownInterval = setInterval(() => {
+        countdownIntervalRef.current = setInterval(() => {
             setCountdown(prev => {
                 if (prev <= 1) {
-                    clearInterval(countdownInterval);
+                    clearInterval(countdownIntervalRef.current);
                     playSound(SOUNDS.GO, 'sine', 0.3);
                     startRound();
                     return 0;
@@ -85,6 +84,12 @@ function FocusClicker() {
                 return prev - 1;
             });
         }, 1000);
+    };
+
+    const handleStartGame = () => {
+        setCountdown(3);
+        playSound(SOUNDS.COUNTDOWN, 'triangle', 0.1);
+        startCountdown();
 
         gameState.startGame();
         setGameStarted(true);
@@ -92,7 +97,37 @@ function FocusClicker() {
         setReactionTimes([]);
     };
 
+    const togglePause = () => {
+        if (gameState.isPaused) {
+            gameState.resumeGame();
+        } else {
+            gameState.pauseGame();
+        }
+    };
+
+    useEffect(() => {
+        if (gameState.isPaused) {
+            if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+            if (timeoutRef.current) clearTimeout(timeoutRef.current);
+            setTarget(null);
+        } else if (gameState.isPlaying && gameStarted) {
+            if (countdown > 0) {
+                startCountdown();
+            } else {
+                startRound();
+            }
+        }
+
+        return () => {
+            if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+            if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        };
+    }, [gameState.isPaused, gameState.isPlaying, gameStarted]);
+
+
     const startRound = () => {
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+
         const delay = Math.random() * 1500 + 500;
 
         timeoutRef.current = setTimeout(() => {
@@ -114,6 +149,7 @@ function FocusClicker() {
             e.stopPropagation();
         }
 
+        if (gameState.isPaused) return;
         if (!startTimeRef.current) return;
 
         const reactionTime = Date.now() - startTimeRef.current;
@@ -163,14 +199,6 @@ function FocusClicker() {
         refreshAll();
         setShowResults(true);
     };
-
-    useEffect(() => {
-        return () => {
-            if (timeoutRef.current) {
-                clearTimeout(timeoutRef.current);
-            }
-        };
-    }, []);
 
     const getResultColor = (time) => {
         if (time < 450) return 'var(--accent-success)';
@@ -233,9 +261,19 @@ function FocusClicker() {
                     <h1 className="text-3xl font-bold text-theme-primary">
                         ⚡ Focus Clicker
                     </h1>
-                    <Button variant="ghost" onClick={() => navigate('/')}>
-                        Вихід
-                    </Button>
+                    <div className="flex items-center space-x-4">
+                        <Button variant="ghost" onClick={() => navigate('/')}>
+                            Вихід
+                        </Button>
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={togglePause}
+                            disabled={showResults}
+                        >
+                            {gameState.isPaused ? '▶️ Продовжити' : '⏸ Пауза'}
+                        </Button>
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-3 gap-4 mb-6">
@@ -289,14 +327,16 @@ function FocusClicker() {
                         </div>
                     ) : !target ? (
                         <div className="absolute inset-0 flex items-center justify-center">
-                            <div className="text-center">
-                                <div className={`text-6xl mb-4 ${accessibility.animationsEnabled ? 'animate-pulse' : ''}`}>
-                                    👀
+                            {!gameState.isPaused && (
+                                <div className="text-center">
+                                    <div className={`text-6xl mb-4 ${accessibility.animationsEnabled ? 'animate-pulse' : ''}`}>
+                                        👀
+                                    </div>
+                                    <p className="text-2xl font-bold text-theme-primary">
+                                        Чекайте...
+                                    </p>
                                 </div>
-                                <p className="text-2xl font-bold text-theme-primary">
-                                    Чекайте...
-                                </p>
-                            </div>
+                            )}
                         </div>
                     ) : (
                         <button
@@ -319,6 +359,18 @@ function FocusClicker() {
                             }}
                             aria-label="Клікніть по цілі"
                         />
+                    )}
+
+                    {/* Pause Overlay */}
+                    {gameState.isPaused && (
+                        <div className="absolute inset-0 flex items-center justify-center z-10">
+                            <div className="text-center p-6 rounded-2xl shadow-2xl border-2" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                                <h2 className="text-2xl font-bold text-theme-primary mb-4">Гра на паузі</h2>
+                                <Button size="md" onClick={togglePause}>
+                                    Продовжити
+                                </Button>
+                            </div>
+                        </div>
                     )}
                 </Card>
 

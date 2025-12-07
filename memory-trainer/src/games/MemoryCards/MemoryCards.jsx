@@ -38,11 +38,18 @@ function MemoryCards() {
     const [hints, setHints] = useState(3);
     const [showResults, setShowResults] = useState(false);
     const [sessionResults, setSessionResults] = useState(null);
-    const [isPaused, setIsPaused] = useState(false);
     const [isHintActive, setIsHintActive] = useState(false);
     const { time, formattedTime, start: startTimer, pause: pauseTimer, resume: resumeTimer, reset: resetTimer } = useTimer();
     const gameState = useGameState('memoryCards');
     const audioContextRef = useRef(null);
+
+    useEffect(() => {
+        if (gameState.isPaused) {
+            pauseTimer();
+        } else if (gameState.isPlaying && difficulty) {
+            resumeTimer();
+        }
+    }, [gameState.isPaused, gameState.isPlaying, pauseTimer, resumeTimer, difficulty]);
 
     useEffect(() => {
         if (accessibility.soundEnabled) {
@@ -55,7 +62,6 @@ function MemoryCards() {
         };
     }, [accessibility.soundEnabled]);
 
-    // 3. Функція відтворення звуку
     const playSound = (frequency, type = 'sine', duration = 0.1, slideTo = null) => {
         if (!accessibility.soundEnabled || !audioContextRef.current) return;
 
@@ -111,7 +117,6 @@ function MemoryCards() {
         setMatchedCards([]);
         setMoves(0);
         setHints(3);
-        setIsPaused(false);
         setIsHintActive(false);
         resetTimer();
         gameState.startGame({ level });
@@ -121,7 +126,7 @@ function MemoryCards() {
 
     const handleCardClick = (cardId) => {
         if (
-            isPaused ||
+            gameState.isPaused ||
             isHintActive ||
             flippedCards.length >= 2 ||
             flippedCards.includes(cardId) ||
@@ -160,7 +165,7 @@ function MemoryCards() {
     };
 
     const useHint = () => {
-        if (hints <= 0 || isPaused || isHintActive) return;
+        if (hints <= 0 || gameState.isPaused || isHintActive) return;
 
         const unmatchedCards = cards.filter(c => !matchedCards.includes(c.id));
         if (unmatchedCards.length < 2) return;
@@ -191,13 +196,9 @@ function MemoryCards() {
     };
 
     const togglePause = () => {
-        if (isPaused) {
-            setIsPaused(false);
-            resumeTimer();
+        if (gameState.isPaused) {
             gameState.resumeGame();
         } else {
-            setIsPaused(true);
-            pauseTimer();
             gameState.pauseGame();
         }
     };
@@ -341,7 +342,7 @@ function MemoryCards() {
                             onClick={togglePause}
                             disabled={showResults}
                         >
-                            {isPaused ? '▶️ Продовжити' : '⏸ Пауза'}
+                            {gameState.isPaused ? '▶️ Продовжити' : '⏸ Пауза'}
                         </Button>
                     </div>
                 </div>
@@ -383,7 +384,7 @@ function MemoryCards() {
                                 size="xs"
                                 variant="outline"
                                 onClick={useHint}
-                                disabled={hints === 0 || isPaused || isHintActive || matchedCards.length === cards.length}
+                                disabled={hints === 0 || gameState.isPaused || isHintActive || matchedCards.length === cards.length}
                                 className="mt-1"
                             >
                                 Підказка
@@ -395,7 +396,7 @@ function MemoryCards() {
                 {/* Game Board */}
                 <Card padding="md" className="relative flex justify-center overflow-hidden">
                     <div
-                        className={`grid transition-opacity duration-300 mx-auto ${isPaused ? 'opacity-20 blur-sm pointer-events-none' : ''}`}
+                        className={`grid transition-opacity duration-300 mx-auto ${gameState.isPaused ? 'opacity-20 blur-sm pointer-events-none' : ''}`}
                         style={{
                             gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
                             width: '100%',
@@ -411,12 +412,12 @@ function MemoryCards() {
                                 <button
                                     key={card.id}
                                     onClick={() => handleCardClick(card.id)}
-                                    disabled={isMatched || isPaused}
+                                    disabled={isMatched || gameState.isPaused} // Захист від кліків під час паузи
                                     className={`
                                         aspect-square rounded-lg font-bold flex items-center justify-center
                                         transition-all duration-500 transform
                                         ${isMatched ? 'opacity-50 cursor-default' : 'hover:scale-105 cursor-pointer'}
-                                        ${!isFlipped && !isMatched && !isPaused && 'shadow hover:shadow-md'}
+                                        ${!isFlipped && !isMatched && !gameState.isPaused && 'shadow hover:shadow-md'}
                                         ${accessibility.animationsEnabled ? 'animate-flip-card' : ''}
                                     `}
                                     style={{
@@ -437,7 +438,7 @@ function MemoryCards() {
                     </div>
 
                     {/* Pause Overlay */}
-                    {isPaused && (
+                    {gameState.isPaused && (
                         <div className="absolute inset-0 flex items-center justify-center z-10">
                             <div className="text-center p-6 rounded-2xl shadow-2xl border-2" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
                                 <h2 className="text-2xl font-bold text-theme-primary mb-4">Гра на паузі</h2>

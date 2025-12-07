@@ -27,7 +27,7 @@ const SOUNDS = {
 
 function DualTask() {
     const navigate = useNavigate();
-    const { accessibility, theme } = useTheme();
+    const { accessibility } = useTheme();
     const gameState = useGameState('dualTask');
     const { refreshAll } = useProfile();
 
@@ -38,9 +38,33 @@ function DualTask() {
     const [feedback, setFeedback] = useState(null);
     const [showResults, setShowResults] = useState(false);
 
-    const { time, start: startTimer, stop: stopTimer, reset: resetTimer } = useTimer(GAME_DURATION, true);
+    const { time, start: startTimer, stop: stopTimer, reset: resetTimer, pause: pauseTimer, resume: resumeTimer } = useTimer(GAME_DURATION, true);
+
     const colorTimerRef = useRef(null);
     const audioContextRef = useRef(null);
+
+    const startColorTimer = () => {
+        if (colorTimerRef.current) clearInterval(colorTimerRef.current);
+        colorTimerRef.current = setInterval(() => {
+            generateColorTask();
+        }, 4000);
+    };
+
+    useEffect(() => {
+        if (gameState.isPaused) {
+            pauseTimer();
+            if (colorTimerRef.current) {
+                clearInterval(colorTimerRef.current);
+                colorTimerRef.current = null;
+            }
+        } else if (gameState.isPlaying && gameStarted) {
+            resumeTimer();
+            if (!colorTimerRef.current) {
+                startColorTimer();
+            }
+        }
+    }, [gameState.isPaused, gameState.isPlaying, gameStarted, pauseTimer, resumeTimer]);
+
 
     useEffect(() => {
         if (accessibility.soundEnabled) {
@@ -95,13 +119,16 @@ function DualTask() {
         playSound(440, 'sine', 0.3);
     };
 
-    const startColorTimer = () => {
-        colorTimerRef.current = setInterval(() => {
-            generateColorTask();
-        }, 4000);
+    const togglePause = () => {
+        if (gameState.isPaused) {
+            gameState.resumeGame();
+        } else {
+            gameState.pauseGame();
+        }
     };
 
     const handleNumberClick = (number) => {
+        if (gameState.isPaused) return;
         if (number === currentNumber) {
             playSound(SOUNDS.BASE_NUMBER + (number * 20), 'sine');
             setCurrentNumber(currentNumber + 1);
@@ -114,6 +141,8 @@ function DualTask() {
     };
 
     const handleColorResponse = (isMatch) => {
+        if (gameState.isPaused) return;
+
         const actualMatch = colorTask.text === colorTask.color;
         if (isMatch === actualMatch) {
             playSound(SOUNDS.CORRECT_COLOR, 'triangle');
@@ -125,6 +154,9 @@ function DualTask() {
             showFeedback('task2', false);
         }
         generateColorTask();
+        if (!gameState.isPaused) {
+            startColorTimer();
+        }
     };
 
     const showFeedback = (task, correct) => {
@@ -253,9 +285,19 @@ function DualTask() {
                     <h1 className="text-3xl font-bold text-theme-primary">
                         ⚖️ Dual Task Challenge
                     </h1>
-                    <Button variant="ghost" onClick={() => navigate('/')}>
-                        Вихід
-                    </Button>
+                    <div className="flex items-center space-x-4">
+                        <Button variant="ghost" onClick={() => navigate('/')}>
+                            Вихід
+                        </Button>
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={togglePause}
+                            disabled={showResults}
+                        >
+                            {gameState.isPaused ? '▶️ Продовжити' : '⏸ Пауза'}
+                        </Button>
+                    </div>
                 </div>
 
                 {/* Stats */}
@@ -285,87 +327,104 @@ function DualTask() {
                     </Card>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                    <Card style={{ transition: 'box-shadow 0.2s', ...getFeedbackStyle('task1') }}>
-                        <h2 className="text-2xl font-bold text-theme-primary mb-4">
-                            Завдання 1: Цифри
-                        </h2>
-                        <p className="text-theme-secondary mb-4">
-                            Натисніть на: <span className="text-3xl font-bold" style={{ color: 'var(--accent-primary)' }}>{currentNumber}</span>
-                        </p>
-                        <div className="grid grid-cols-5 gap-2">
-                            {Array.from({ length: 25 }, (_, i) => i + 1).map(num => (
-                                <button
-                                    key={num}
-                                    onClick={() => handleNumberClick(num)}
-                                    className={`
-                                        aspect-square rounded-lg font-bold text-xl
-                                        transition-all duration-200
-                                        ${num < currentNumber
-                                        ? 'cursor-not-allowed opacity-50'
-                                        : 'hover:scale-105 shadow-md'}
-                                    `}
+                <div className="relative">
+                    {/* Game Area Wrapper for Overlay */}
+                    <div className={`grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 transition-opacity duration-300 ${gameState.isPaused ? 'opacity-20 blur-sm pointer-events-none' : ''}`}>
+                        <Card style={{ transition: 'box-shadow 0.2s', ...getFeedbackStyle('task1') }}>
+                            <h2 className="text-2xl font-bold text-theme-primary mb-4">
+                                Завдання 1: Цифри
+                            </h2>
+                            <p className="text-theme-secondary mb-4">
+                                Натисніть на: <span className="text-3xl font-bold" style={{ color: 'var(--accent-primary)' }}>{currentNumber}</span>
+                            </p>
+                            <div className="grid grid-cols-5 gap-2">
+                                {Array.from({ length: 25 }, (_, i) => i + 1).map(num => (
+                                    <button
+                                        key={num}
+                                        onClick={() => handleNumberClick(num)}
+                                        className={`
+                                            aspect-square rounded-lg font-bold text-xl
+                                            transition-all duration-200
+                                            ${num < currentNumber
+                                            ? 'cursor-not-allowed opacity-50'
+                                            : 'hover:scale-105 shadow-md'}
+                                        `}
+                                        style={{
+                                            backgroundColor: num >= currentNumber
+                                                ? 'var(--accent-primary)'
+                                                : 'var(--bg-tertiary)',
+                                            color: num >= currentNumber
+                                                ? 'var(--text-inverse)'
+                                                : 'var(--text-tertiary)',
+                                            border: num >= currentNumber
+                                                ? 'none'
+                                                : '1px solid var(--border-color)'
+                                        }}
+                                        disabled={num < currentNumber || gameState.isPaused}
+                                    >
+                                        {num}
+                                    </button>
+                                ))}
+                            </div>
+                        </Card>
+
+                        {/* Task 2: Colors */}
+                        <Card style={{ transition: 'box-shadow 0.2s', ...getFeedbackStyle('task2') }}>
+                            <h2 className="text-2xl font-bold text-theme-primary mb-4">
+                                Завдання 2: Кольори
+                            </h2>
+                            <p className="text-theme-secondary mb-4">
+                                Чи співпадає текст з кольором?
+                            </p>
+
+                            <div className="mb-6 p-8 rounded-xl text-center" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
+                                <div
+                                    className="text-6xl font-bold transition-colors duration-200"
                                     style={{
-                                        backgroundColor: num >= currentNumber
-                                            ? 'var(--accent-primary)'
-                                            : 'var(--bg-tertiary)',
-                                        color: num >= currentNumber
-                                            ? 'var(--text-inverse)'
-                                            : 'var(--text-tertiary)',
-                                        border: num >= currentNumber
-                                            ? 'none'
-                                            : '1px solid var(--border-color)'
+                                        color: COLOR_MAP[colorTask.color],
+                                        textShadow: '0 2px 4px rgba(0,0,0,0.1)'
                                     }}
-                                    disabled={num < currentNumber}
                                 >
-                                    {num}
-                                </button>
-                            ))}
-                        </div>
-                    </Card>
+                                    {colorTask.text}
+                                </div>
+                            </div>
 
-                    {/* Task 2: Colors */}
-                    <Card style={{ transition: 'box-shadow 0.2s', ...getFeedbackStyle('task2') }}>
-                        <h2 className="text-2xl font-bold text-theme-primary mb-4">
-                            Завдання 2: Кольори
-                        </h2>
-                        <p className="text-theme-secondary mb-4">
-                            Чи співпадає текст з кольором?
-                        </p>
+                            <div className="grid grid-cols-2 gap-4">
+                                <Button
+                                    size="lg"
+                                    variant="success"
+                                    onClick={() => handleColorResponse(true)}
+                                    fullWidth
+                                    style={{ backgroundColor: 'var(--accent-success)', borderColor: 'var(--accent-success)' }}
+                                    disabled={gameState.isPaused}
+                                >
+                                    ✓ Так
+                                </Button>
+                                <Button
+                                    size="lg"
+                                    variant="danger"
+                                    onClick={() => handleColorResponse(false)}
+                                    fullWidth
+                                    style={{ backgroundColor: 'var(--accent-danger)', borderColor: 'var(--accent-danger)' }}
+                                    disabled={gameState.isPaused}
+                                >
+                                    ✗ Ні
+                                </Button>
+                            </div>
+                        </Card>
+                    </div>
 
-                        <div className="mb-6 p-8 rounded-xl text-center" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
-                            <div
-                                className="text-6xl font-bold transition-colors duration-200"
-                                style={{
-                                    color: COLOR_MAP[colorTask.color],
-                                    textShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                                }}
-                            >
-                                {colorTask.text}
+                    {/* Pause Overlay */}
+                    {gameState.isPaused && (
+                        <div className="absolute inset-0 flex items-center justify-center z-10">
+                            <div className="text-center p-6 rounded-2xl shadow-2xl border-2" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                                <h2 className="text-2xl font-bold text-theme-primary mb-4">Гра на паузі</h2>
+                                <Button size="md" onClick={togglePause}>
+                                    Продовжити
+                                </Button>
                             </div>
                         </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <Button
-                                size="lg"
-                                variant="success"
-                                onClick={() => handleColorResponse(true)}
-                                fullWidth
-                                style={{ backgroundColor: 'var(--accent-success)', borderColor: 'var(--accent-success)' }}
-                            >
-                                ✓ Так
-                            </Button>
-                            <Button
-                                size="lg"
-                                variant="danger"
-                                onClick={() => handleColorResponse(false)}
-                                fullWidth
-                                style={{ backgroundColor: 'var(--accent-danger)', borderColor: 'var(--accent-danger)' }}
-                            >
-                                ✗ Ні
-                            </Button>
-                        </div>
-                    </Card>
+                    )}
                 </div>
 
                 {/* Balance Indicator */}
