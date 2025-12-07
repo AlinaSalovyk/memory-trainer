@@ -147,14 +147,6 @@ function Settings() {
 
                     <div className="space-y-2">
                         <ToggleSwitch
-                            enabled={accessibility.animationsEnabled}
-                            onChange={(value) => updateAccessibility({ animationsEnabled: value })}
-                            label="Анімації"
-                        />
-
-                        <div style={{ borderTop: '1px solid var(--border-color)' }} />
-
-                        <ToggleSwitch
                             enabled={accessibility.soundEnabled}
                             onChange={(value) => updateAccessibility({ soundEnabled: value })}
                             label="Звукові ефекти"
@@ -169,7 +161,7 @@ function Settings() {
                                 <FaLightbulb className="text-2xl mr-3 text-primary flex-shrink-0" />
                                 <div>
                                     <p className="text-sm text-theme-secondary">
-                                        <strong className="text-theme-primary">Як це працює:</strong> Вимкнення цих опцій прибере відповідні ефекти у <strong>всіх</strong> міні-іграх. Це допоможе зосередитись або покращити швидкодію.
+                                        <strong className="text-theme-primary">Як це працює:</strong> Вимкнення цієї опції прибере звукові ефекти у <strong>всіх</strong> міні-іграх. Це допоможе зосередитись у тиші.
                                     </p>
                                 </div>
                             </div>
