@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-
 import {
     FaPalette,
     FaCheck,
@@ -106,52 +105,9 @@ function Settings() {
                                 <div className="text-sm text-theme-secondary">
                                     {themeData.description}
                                 </div>
-
-                                <div className="flex space-x-2 mt-4">
-                                    <div className="w-8 h-8 rounded-md"
-                                         style={{
-                                             backgroundColor: themeKey === THEMES.LIGHT ? '#f8fafc' :
-                                                 themeKey === THEMES.DARK ? '#0f172a' :
-                                                     themeKey === THEMES.HIGH_CONTRAST ? '#000000' : '#0a192f',
-                                             border: '1px solid var(--border-color)'
-                                         }}></div>
-                                    <div className="w-8 h-8 rounded-md"
-                                         style={{
-                                             backgroundColor: themeKey === THEMES.LIGHT ? '#4f46e5' :
-                                                 themeKey === THEMES.DARK ? '#818cf8' :
-                                                     themeKey === THEMES.HIGH_CONTRAST ? '#00ff00' : '#64ffda'
-                                         }}></div>
-                                    <div className="w-8 h-8 rounded-md"
-                                         style={{
-                                             backgroundColor: themeKey === THEMES.LIGHT ? '#10b981' :
-                                                 themeKey === THEMES.DARK ? '#34d399' :
-                                                     themeKey === THEMES.HIGH_CONTRAST ? '#ffff00' : '#57d9a3'
-                                         }}></div>
-                                </div>
                             </button>
                         ))}
                     </div>
-
-                    {theme === THEMES.HIGH_CONTRAST && (
-                        <div className="mt-4 p-4 rounded-lg"
-                             style={{
-                                 backgroundColor: 'var(--bg-hover)',
-                                 border: '2px solid var(--accent-primary)'
-                             }}>
-                            <div className="flex items-start">
-                                <FaUniversalAccess className="text-2xl mr-3 text-primary flex-shrink-0" />
-                                <div>
-                                    <p className="font-bold mb-1 text-theme-primary">
-                                        Режим високої контрастності активний
-                                    </p>
-                                    <p className="text-sm text-theme-secondary">
-                                        Цей режим оптимізований для людей з вадами зору.
-                                        Всі елементи мають максимальний контраст і збільшені розміри.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    )}
                 </Card>
 
                 <Card className="mb-6">
@@ -213,7 +169,7 @@ function Settings() {
                                 <FaLightbulb className="text-2xl mr-3 text-primary flex-shrink-0" />
                                 <div>
                                     <p className="text-sm text-theme-secondary">
-                                        <strong className="text-theme-primary">Підказка:</strong> Вимкнення анімацій може покращити продуктивність на слабших пристроях та зменшити відволікання під час ігор.
+                                        <strong className="text-theme-primary">Як це працює:</strong> Вимкнення цих опцій прибере відповідні ефекти у <strong>всіх</strong> міні-іграх. Це допоможе зосередитись або покращити швидкодію.
                                     </p>
                                 </div>
                             </div>
@@ -249,11 +205,9 @@ function Settings() {
 
                     <div className="space-y-2 text-theme-secondary">
                         <p><strong className="text-theme-primary">Версія:</strong> 1.0.0</p>
-                        <p><strong className="text-theme-primary">Технології:</strong> React + Vite + TailwindCSS v4</p>
-                        <p><strong className="text-theme-primary">Теми:</strong> 4 варіанти оформлення</p>
-                        <p><strong className="text-theme-primary">Збереження:</strong> localStorage (локальне)</p>
+                        <p><strong className="text-theme-primary">Технології:</strong> React + Vite + TailwindCSS</p>
                         <p className="pt-3" style={{ borderTop: '1px solid var(--border-color)' }}>
-                            <strong className="text-theme-primary">Memory Trainer</strong> - застосунок для тренування когнітивних навичок, створений з любов'ю до розвитку пам'яті та концентрації.
+                            <strong className="text-theme-primary">Memory Trainer</strong> - тренуйте пам'ять та концентрацію.
                         </p>
                     </div>
                 </Card>
@@ -269,7 +223,7 @@ function Settings() {
                             <FaTrashCan className="inline-block" />
                         </div>
                         <p className="mb-6 text-theme-secondary">
-                            Ви впевнені, що хочете видалити всі дані? Цю дію неможливо скасувати.
+                            Ви впевнені? Всі ваші рекорди буде втрачено.
                         </p>
                         <div className="flex space-x-4">
                             <Button
