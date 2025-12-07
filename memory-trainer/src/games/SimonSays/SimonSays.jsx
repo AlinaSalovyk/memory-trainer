@@ -23,6 +23,11 @@ const PHASES = {
     GAME_OVER: 'game_over'
 };
 
+const SOUNDS = {
+    GAME_OVER: 150,
+    SUCCESS: [523.25, 659.25, 783.99, 1046.50]
+};
+
 function SimonSays() {
     const navigate = useNavigate();
     const { accessibility } = useTheme();
@@ -50,23 +55,27 @@ function SimonSays() {
         };
     }, [accessibility.soundEnabled]);
 
-    const playSound = (frequency) => {
+    const playSound = (frequency, type = 'sine', duration = 0.3) => {
         if (!accessibility.soundEnabled || !audioContextRef.current) return;
 
-        const oscillator = audioContextRef.current.createOscillator();
-        const gainNode = audioContextRef.current.createGain();
+        try {
+            const oscillator = audioContextRef.current.createOscillator();
+            const gainNode = audioContextRef.current.createGain();
 
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContextRef.current.destination);
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContextRef.current.destination);
 
-        oscillator.frequency.value = frequency;
-        oscillator.type = 'sine';
+            oscillator.frequency.value = frequency;
+            oscillator.type = type;
 
-        gainNode.gain.setValueAtTime(0.3, audioContextRef.current.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContextRef.current.currentTime + 0.3);
+            gainNode.gain.setValueAtTime(0.3, audioContextRef.current.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContextRef.current.currentTime + duration);
 
-        oscillator.start(audioContextRef.current.currentTime);
-        oscillator.stop(audioContextRef.current.currentTime + 0.3);
+            oscillator.start(audioContextRef.current.currentTime);
+            oscillator.stop(audioContextRef.current.currentTime + duration);
+        } catch (e) {
+            console.error("Audio playback error:", e);
+        }
     };
 
     const handleStartGame = () => {
@@ -93,7 +102,7 @@ function SimonSays() {
 
         for (let i = 0; i < seq.length; i++) {
             setActiveColor(seq[i]);
-            playSound(COLORS[seq[i]].sound);
+            playSound(COLORS[seq[i]].sound, 'sine', speed / 1000);
             await new Promise(resolve => setTimeout(resolve, speed));
             setActiveColor(null);
             await new Promise(resolve => setTimeout(resolve, speed / 2));
@@ -113,15 +122,21 @@ function SimonSays() {
         setPlayerSequence(newPlayerSequence);
 
         if (newPlayerSequence[newPlayerSequence.length - 1] !== sequence[newPlayerSequence.length - 1]) {
+
             setTimeout(() => {
+                playSound(SOUNDS.GAME_OVER, 'sawtooth', 0.6);
                 setPhase(PHASES.GAME_OVER);
                 finishGame();
-            }, 500);
+            }, 300);
         } else if (newPlayerSequence.length === sequence.length) {
             setTimeout(() => {
+                SOUNDS.SUCCESS.forEach((freq, i) => {
+                    setTimeout(() => playSound(freq, 'sine', 0.2), i * 100);
+                });
+
                 setLevel(level + 1);
                 startNewRound(sequence);
-            }, 1000);
+            }, 500);
         }
     };
 

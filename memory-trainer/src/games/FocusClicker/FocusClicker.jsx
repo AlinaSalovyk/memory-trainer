@@ -12,31 +12,76 @@ import storageService from '../../services/storageService';
 const TOTAL_ROUNDS = 10;
 const COLORS = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
 
+// Константи для звуків
+const SOUNDS = {
+    COUNTDOWN: 440,  // "Тік" таймера
+    GO: 880,         // "Старт"
+    GAME_OVER: 600   // Завершення
+};
+
 function FocusClicker() {
     const navigate = useNavigate();
     const { accessibility } = useTheme();
     const gameState = useGameState('focusClicker');
     const { refreshAll } = useProfile();
-
     const [gameStarted, setGameStarted] = useState(false);
     const [currentRound, setCurrentRound] = useState(0);
     const [target, setTarget] = useState(null);
     const [reactionTimes, setReactionTimes] = useState([]);
     const [showResults, setShowResults] = useState(false);
     const [countdown, setCountdown] = useState(3);
-
     const startTimeRef = useRef(null);
     const timeoutRef = useRef(null);
+    const audioContextRef = useRef(null);
+
+    useEffect(() => {
+        if (accessibility.soundEnabled) {
+            audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        return () => {
+            if (audioContextRef.current) {
+                audioContextRef.current.close();
+            }
+        };
+    }, [accessibility.soundEnabled]);
+
+    const playSound = (frequency, type = 'sine', duration = 0.1) => {
+        if (!accessibility.soundEnabled || !audioContextRef.current) return;
+
+        try {
+            const oscillator = audioContextRef.current.createOscillator();
+            const gainNode = audioContextRef.current.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContextRef.current.destination);
+
+            oscillator.frequency.value = frequency;
+            oscillator.type = type;
+
+            gainNode.gain.setValueAtTime(0.1, audioContextRef.current.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioContextRef.current.currentTime + duration);
+
+            oscillator.start(audioContextRef.current.currentTime);
+            oscillator.stop(audioContextRef.current.currentTime + duration);
+        } catch (e) {
+            console.error("Audio playback error:", e);
+        }
+    };
 
     const handleStartGame = () => {
         setCountdown(3);
+
+        playSound(SOUNDS.COUNTDOWN, 'triangle', 0.1);
+
         const countdownInterval = setInterval(() => {
             setCountdown(prev => {
                 if (prev <= 1) {
                     clearInterval(countdownInterval);
+                    playSound(SOUNDS.GO, 'sine', 0.3);
                     startRound();
                     return 0;
                 }
+                playSound(SOUNDS.COUNTDOWN, 'triangle', 0.1);
                 return prev - 1;
             });
         }, 1000);
@@ -72,6 +117,9 @@ function FocusClicker() {
         if (!startTimeRef.current) return;
 
         const reactionTime = Date.now() - startTimeRef.current;
+        const pitch = Math.max(200, 1200 - reactionTime);
+        playSound(pitch, 'sine', 0.15);
+
         setReactionTimes([...reactionTimes, reactionTime]);
         setTarget(null);
         startTimeRef.current = null;
@@ -88,6 +136,9 @@ function FocusClicker() {
         const avgReaction = Math.round(times.reduce((a, b) => a + b, 0) / times.length);
         const bestReaction = Math.min(...times);
         const score = Math.round(1000 - avgReaction);
+        setTimeout(() => {
+            playSound(SOUNDS.GAME_OVER, 'triangle', 0.4);
+        }, 300);
 
         const currentRecords = storageService.getRecords();
         let isNewRecord = false;

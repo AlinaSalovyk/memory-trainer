@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/layout/Layout';
 import Card from '../../components/ui/Card';
@@ -13,6 +13,15 @@ const PHASES = {
     MEMORIZE: 'memorize',
     RECALL: 'recall',
     RESULT: 'result'
+};
+
+const SOUNDS = {
+    TICK: 1000,
+    CLICK: 400,
+    START_RECALL: 600,
+    SUCCESS: [523.25, 659.25, 783.99],
+    ERROR: 150,
+    GAME_OVER: 100
 };
 
 function PatternGrid() {
@@ -30,6 +39,41 @@ function PatternGrid() {
     const [lives, setLives] = useState(3);
     const [showResults, setShowResults] = useState(false);
     const [feedback, setFeedback] = useState(null);
+    const audioContextRef = useRef(null);
+
+    useEffect(() => {
+        if (accessibility.soundEnabled) {
+            audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        return () => {
+            if (audioContextRef.current) {
+                audioContextRef.current.close();
+            }
+        };
+    }, [accessibility.soundEnabled]);
+
+    const playSound = (frequency, type = 'sine', duration = 0.1) => {
+        if (!accessibility.soundEnabled || !audioContextRef.current) return;
+
+        try {
+            const oscillator = audioContextRef.current.createOscillator();
+            const gainNode = audioContextRef.current.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContextRef.current.destination);
+
+            oscillator.frequency.value = frequency;
+            oscillator.type = type;
+
+            gainNode.gain.setValueAtTime(0.05, audioContextRef.current.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioContextRef.current.currentTime + duration);
+
+            oscillator.start(audioContextRef.current.currentTime);
+            oscillator.stop(audioContextRef.current.currentTime + duration);
+        } catch (e) {
+            console.error("Audio playback error:", e);
+        }
+    };
 
     const generatePattern = (size, cellCount) => {
         const totalCells = size * size;
@@ -64,17 +108,22 @@ function PatternGrid() {
 
     useEffect(() => {
         if (phase === PHASES.MEMORIZE && displayTime > 0) {
+            playSound(SOUNDS.TICK, 'sine', 0.05);
+
             const timer = setTimeout(() => {
                 setDisplayTime(displayTime - 1);
             }, 1000);
             return () => clearTimeout(timer);
         } else if (phase === PHASES.MEMORIZE && displayTime === 0) {
+            playSound(SOUNDS.START_RECALL, 'triangle', 0.2);
             setPhase(PHASES.RECALL);
         }
     }, [phase, displayTime]);
 
     const handleCellClick = (cellIndex) => {
         if (phase !== PHASES.RECALL) return;
+
+        playSound(SOUNDS.CLICK, 'square', 0.05);
 
         if (playerPattern.includes(cellIndex)) {
             setPlayerPattern(playerPattern.filter(c => c !== cellIndex));
@@ -91,6 +140,10 @@ function PatternGrid() {
         if (isCorrect) {
             setFeedback({ type: 'success', message: 'Правильно! 🎉' });
 
+            SOUNDS.SUCCESS.forEach((freq, i) => {
+                setTimeout(() => playSound(freq, 'sine', 0.2), i * 100);
+            });
+
             setTimeout(() => {
                 const nextLevel = level + 1;
                 const newSize = Math.min(6, 3 + Math.floor(nextLevel / 3));
@@ -103,6 +156,8 @@ function PatternGrid() {
                 type: 'error',
                 message: `Неправильно. Залишилось спроб: ${newLives}`
             });
+
+            playSound(SOUNDS.ERROR, 'sawtooth', 0.4);
 
             if (newLives === 0) {
                 setTimeout(() => {
@@ -117,6 +172,8 @@ function PatternGrid() {
     };
 
     const finishGame = () => {
+        playSound(SOUNDS.GAME_OVER, 'sawtooth', 0.6);
+
         const currentRecords = storageService.getRecords();
         let newHighScore = false;
 
@@ -284,22 +341,12 @@ function PatternGrid() {
                                         ${accessibility.animationsEnabled && isActive ? 'animate-pulse-slow' : ''}
                                     `}
                                     style={{
-                                        // ВИПРАВЛЕННЯ КОНТРАСТУ:
-                                        // 1. Активна клітинка: Акцентний колір
-                                        // 2. Неактивна клітинка: bg-secondary (має кращий контраст на світлих темах ніж tertiary)
                                         backgroundColor: isActive
                                             ? 'var(--accent-primary)'
                                             : 'var(--bg-secondary)',
-
-                                        // 3. Бордер: Робимо його 2px для чіткості у всіх темах
                                         border: isActive ? 'none' : '2px solid var(--border-color)',
-
-                                        // 4. Ефект наведення через CSS змінну (для взаємодії)
-                                        // Ми не можемо використовувати :hover тут напряму в inline styles без CSS-in-JS бібліотеки,
-                                        // але ми можемо додати box-shadow для неактивних елементів
                                         boxShadow: (!isActive && isInteractable) ? 'none' : undefined,
                                     }}
-                                    // Додаємо клас для hover ефекту, щоб змінювати колір бордера при наведенні
                                     onMouseEnter={(e) => {
                                         if (!isActive && isInteractable) {
                                             e.currentTarget.style.borderColor = 'var(--accent-primary)';

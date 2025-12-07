@@ -15,6 +15,15 @@ const PHASES = {
     RESULT: 'result'
 };
 
+const SOUNDS = {
+    TICK: 1000,
+    TYPE: 800,
+    START_RECALL: 600,
+    SUCCESS: [523.25, 659.25, 783.99],
+    ERROR: 150,
+    GAME_OVER: 100
+};
+
 function NumberSequence() {
     const navigate = useNavigate();
     const { accessibility } = useTheme();
@@ -31,8 +40,43 @@ function NumberSequence() {
     const [incorrectCount, setIncorrectCount] = useState(0);
     const [showResults, setShowResults] = useState(false);
     const [feedback, setFeedback] = useState(null);
-
     const inputRefs = useRef([]);
+    const audioContextRef = useRef(null);
+
+
+    useEffect(() => {
+        if (accessibility.soundEnabled) {
+            audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        return () => {
+            if (audioContextRef.current) {
+                audioContextRef.current.close();
+            }
+        };
+    }, [accessibility.soundEnabled]);
+
+    const playSound = (frequency, type = 'sine', duration = 0.1) => {
+        if (!accessibility.soundEnabled || !audioContextRef.current) return;
+
+        try {
+            const oscillator = audioContextRef.current.createOscillator();
+            const gainNode = audioContextRef.current.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContextRef.current.destination);
+
+            oscillator.frequency.value = frequency;
+            oscillator.type = type;
+
+            gainNode.gain.setValueAtTime(0.05, audioContextRef.current.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioContextRef.current.currentTime + duration);
+
+            oscillator.start(audioContextRef.current.currentTime);
+            oscillator.stop(audioContextRef.current.currentTime + duration);
+        } catch (e) {
+            console.error("Audio playback error:", e);
+        }
+    };
 
     const generateSequence = (length) => {
         return Array.from({ length }, () => Math.floor(Math.random() * 10));
@@ -55,11 +99,16 @@ function NumberSequence() {
 
     useEffect(() => {
         if (phase === PHASES.MEMORIZE && displayTime > 0) {
+
+            playSound(SOUNDS.TICK, 'sine', 0.05);
+
             const timer = setTimeout(() => {
                 setDisplayTime(displayTime - 1);
             }, 1000);
             return () => clearTimeout(timer);
         } else if (phase === PHASES.MEMORIZE && displayTime === 0) {
+            playSound(SOUNDS.START_RECALL, 'triangle', 0.3);
+
             setPhase(PHASES.RECALL);
             setTimeout(() => inputRefs.current[0]?.focus(), 100);
         }
@@ -68,6 +117,10 @@ function NumberSequence() {
     const handleInputChange = (index, value) => {
         if (value.length > 1) return;
         if (value !== '' && !/^\d$/.test(value)) return;
+
+        if (value !== '') {
+            playSound(SOUNDS.TYPE, 'square', 0.05);
+        }
 
         const newInput = [...userInput];
         newInput[index] = value;
@@ -94,6 +147,11 @@ function NumberSequence() {
         if (isCorrect) {
             setCorrectStreak(correctStreak + 1);
             setFeedback({ type: 'success', message: 'Правильно! 🎉' });
+
+            SOUNDS.SUCCESS.forEach((freq, i) => {
+                setTimeout(() => playSound(freq, 'sine', 0.2), i * 100);
+            });
+
             setTimeout(() => {
                 const nextLevel = level + 1;
                 setLevel(nextLevel);
@@ -105,6 +163,9 @@ function NumberSequence() {
                 type: 'error',
                 message: `Неправильно. Послідовність була: ${sequence.join(' ')}`
             });
+
+            playSound(SOUNDS.ERROR, 'sawtooth', 0.4);
+
             if (incorrectCount + 1 >= 3) {
                 setTimeout(() => {
                     finishGame();
@@ -118,6 +179,8 @@ function NumberSequence() {
     };
 
     const finishGame = () => {
+        playSound(SOUNDS.GAME_OVER, 'sawtooth', 0.8);
+
         const accuracy = totalAttempts > 0
             ? Math.round((correctStreak / totalAttempts) * 100)
             : 0;
@@ -233,7 +296,6 @@ function NumberSequence() {
 
                     <Card padding="md" className="text-center">
                         <div className="text-2xl mb-1">❌</div>
-                        {/* Заміна text-danger на inline style */}
                         <div className="text-2xl font-bold" style={{ color: 'var(--accent-danger)' }}>
                             {incorrectCount}/3
                         </div>

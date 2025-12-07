@@ -14,6 +14,14 @@ const GAME_DURATION = 60;
 const SPAWN_INTERVAL = 1000;
 const BASE_SPEED = 2;
 
+const SOUNDS = {
+    GOOD: 880,
+    BAD: 150,
+    MISS: 200,
+    GAME_OVER: 100,
+    START: 440
+};
+
 function FocusAvoider() {
     const navigate = useNavigate();
     const { accessibility } = useTheme();
@@ -36,9 +44,45 @@ function FocusAvoider() {
     const objectIdRef = useRef(0);
     const gameAreaRef = useRef(null);
 
+    const audioContextRef = useRef(null);
+
     const OBJECT_TYPES = {
         GOOD: { emoji: '🟢', points: 10, color: '#10b981' },
         BAD: { emoji: '🔴', points: -5, color: '#ef4444' }
+    };
+
+    useEffect(() => {
+        if (accessibility.soundEnabled) {
+            audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        return () => {
+            if (audioContextRef.current) {
+                audioContextRef.current.close();
+            }
+        };
+    }, [accessibility.soundEnabled]);
+
+    const playSound = (frequency, type = 'sine', duration = 0.1) => {
+        if (!accessibility.soundEnabled || !audioContextRef.current) return;
+
+        try {
+            const oscillator = audioContextRef.current.createOscillator();
+            const gainNode = audioContextRef.current.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContextRef.current.destination);
+
+            oscillator.frequency.value = frequency;
+            oscillator.type = type;
+
+            gainNode.gain.setValueAtTime(0.1, audioContextRef.current.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioContextRef.current.currentTime + duration);
+
+            oscillator.start(audioContextRef.current.currentTime);
+            oscillator.stop(audioContextRef.current.currentTime + duration);
+        } catch (e) {
+            console.error("Audio playback error:", e);
+        }
     };
 
     useEffect(() => {
@@ -67,6 +111,7 @@ function FocusAvoider() {
         resetTimer();
         startTimer();
         startSpawning();
+        playSound(SOUNDS.START, 'sine', 0.5);
     };
 
     const startSpawning = () => {
@@ -114,6 +159,7 @@ function FocusAvoider() {
                 );
 
                 if (missedGreenObjects.length > 0) {
+                    playSound(SOUNDS.MISS, 'triangle', 0.2);
                     setScore(currentScore => currentScore - (missedGreenObjects.length * 5));
                 }
 
@@ -150,6 +196,12 @@ function FocusAvoider() {
         e.preventDefault();
         e.stopPropagation();
 
+        if (type === 'GOOD') {
+            playSound(SOUNDS.GOOD, 'sine', 0.1);
+        } else {
+            playSound(SOUNDS.BAD, 'sawtooth', 0.3);
+        }
+
         const points = OBJECT_TYPES[type].points;
         setScore(prev => prev + points);
 
@@ -166,6 +218,12 @@ function FocusAvoider() {
         stopTimer();
         gameState.pauseGame();
         setGameOverReason(reason);
+
+        if (reason === 'score') {
+            playSound(SOUNDS.GAME_OVER, 'sawtooth', 0.8); // Довгий неприємний звук
+        } else {
+            playSound(SOUNDS.START, 'sine', 0.5); // Звичайний звук завершення
+        }
 
         if (spawnTimerRef.current) {
             clearInterval(spawnTimerRef.current);

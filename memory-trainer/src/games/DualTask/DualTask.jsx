@@ -19,6 +19,12 @@ const COLOR_MAP = {
     'жовтий': '#f59e0b'
 };
 
+const SOUNDS = {
+    WRONG: 150,
+    CORRECT_COLOR: 600,
+    BASE_NUMBER: 300
+};
+
 function DualTask() {
     const navigate = useNavigate();
     const { accessibility, theme } = useTheme();
@@ -34,6 +40,41 @@ function DualTask() {
 
     const { time, start: startTimer, stop: stopTimer, reset: resetTimer } = useTimer(GAME_DURATION, true);
     const colorTimerRef = useRef(null);
+    const audioContextRef = useRef(null);
+
+    useEffect(() => {
+        if (accessibility.soundEnabled) {
+            audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        return () => {
+            if (audioContextRef.current) {
+                audioContextRef.current.close();
+            }
+        };
+    }, [accessibility.soundEnabled]);
+
+    const playSound = (frequency, type = 'sine', duration = 0.1) => {
+        if (!accessibility.soundEnabled || !audioContextRef.current) return;
+
+        try {
+            const oscillator = audioContextRef.current.createOscillator();
+            const gainNode = audioContextRef.current.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContextRef.current.destination);
+
+            oscillator.frequency.value = frequency;
+            oscillator.type = type;
+
+            gainNode.gain.setValueAtTime(0.1, audioContextRef.current.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioContextRef.current.currentTime + duration);
+
+            oscillator.start(audioContextRef.current.currentTime);
+            oscillator.stop(audioContextRef.current.currentTime + duration);
+        } catch (e) {
+            console.error("Audio playback error:", e);
+        }
+    };
 
     const generateColorTask = () => {
         const text = COLORS[Math.floor(Math.random() * COLORS.length)];
@@ -51,6 +92,7 @@ function DualTask() {
         startTimer();
         generateColorTask();
         startColorTimer();
+        playSound(440, 'sine', 0.3);
     };
 
     const startColorTimer = () => {
@@ -61,10 +103,12 @@ function DualTask() {
 
     const handleNumberClick = (number) => {
         if (number === currentNumber) {
+            playSound(SOUNDS.BASE_NUMBER + (number * 20), 'sine');
             setCurrentNumber(currentNumber + 1);
             setScores(prev => ({ ...prev, task1: prev.task1 + 10 }));
             showFeedback('task1', true);
         } else {
+            playSound(SOUNDS.WRONG, 'sawtooth', 0.3);
             showFeedback('task1', false);
         }
     };
@@ -72,9 +116,12 @@ function DualTask() {
     const handleColorResponse = (isMatch) => {
         const actualMatch = colorTask.text === colorTask.color;
         if (isMatch === actualMatch) {
+            playSound(SOUNDS.CORRECT_COLOR, 'triangle');
+
             setScores(prev => ({ ...prev, task2: prev.task2 + 10 }));
             showFeedback('task2', true);
         } else {
+            playSound(SOUNDS.WRONG, 'sawtooth', 0.3);
             showFeedback('task2', false);
         }
         generateColorTask();
@@ -95,6 +142,8 @@ function DualTask() {
     const endGame = () => {
         stopTimer();
         gameState.pauseGame();
+
+        playSound(300, 'sine', 0.5);
 
         if (colorTimerRef.current) {
             clearInterval(colorTimerRef.current);
@@ -328,7 +377,6 @@ function DualTask() {
                         <span className="text-sm font-medium text-theme-secondary">
                             Завдання 1
                         </span>
-                        {/* Фон прогрес-бару тепер використовує bg-theme-tertiary */}
                         <div className="flex-1 h-6 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
                             <div className="h-full flex">
                                 <div

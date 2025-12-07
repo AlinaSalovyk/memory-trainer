@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/layout/Layout';
 import Card from '../../components/ui/Card';
@@ -18,6 +18,14 @@ const DIFFICULTY_LEVELS = {
     hard: { rows: 8, cols: 8, name: 'Важкий' }
 };
 
+const SOUNDS = {
+    FLIP: 400,
+    MATCH: 880,
+    MISMATCH: 150,
+    HINT: 1200,
+    WIN_NOTES: [523.25, 659.25, 783.99, 1046.50]
+};
+
 function MemoryCards() {
     const navigate = useNavigate();
     const { accessibility } = useTheme();
@@ -32,10 +40,48 @@ function MemoryCards() {
     const [sessionResults, setSessionResults] = useState(null);
     const [isPaused, setIsPaused] = useState(false);
     const [isHintActive, setIsHintActive] = useState(false);
-
     const { time, formattedTime, start: startTimer, pause: pauseTimer, resume: resumeTimer, reset: resetTimer } = useTimer();
-
     const gameState = useGameState('memoryCards');
+    const audioContextRef = useRef(null);
+
+    useEffect(() => {
+        if (accessibility.soundEnabled) {
+            audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        return () => {
+            if (audioContextRef.current) {
+                audioContextRef.current.close();
+            }
+        };
+    }, [accessibility.soundEnabled]);
+
+    // 3. Функція відтворення звуку
+    const playSound = (frequency, type = 'sine', duration = 0.1, slideTo = null) => {
+        if (!accessibility.soundEnabled || !audioContextRef.current) return;
+
+        try {
+            const oscillator = audioContextRef.current.createOscillator();
+            const gainNode = audioContextRef.current.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContextRef.current.destination);
+
+            oscillator.frequency.value = frequency;
+            oscillator.type = type;
+
+            if (slideTo) {
+                oscillator.frequency.exponentialRampToValueAtTime(slideTo, audioContextRef.current.currentTime + duration);
+            }
+
+            gainNode.gain.setValueAtTime(0.1, audioContextRef.current.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioContextRef.current.currentTime + duration);
+
+            oscillator.start(audioContextRef.current.currentTime);
+            oscillator.stop(audioContextRef.current.currentTime + duration);
+        } catch (e) {
+            console.error("Audio playback error:", e);
+        }
+    };
 
     const generateCards = (level) => {
         const { rows, cols } = DIFFICULTY_LEVELS[level];
@@ -70,6 +116,7 @@ function MemoryCards() {
         resetTimer();
         gameState.startGame({ level });
         startTimer();
+        playSound(SOUNDS.FLIP, 'sine', 0.2, 600);
     };
 
     const handleCardClick = (cardId) => {
@@ -82,6 +129,7 @@ function MemoryCards() {
         ) {
             return;
         }
+        playSound(SOUNDS.FLIP, 'sine', 0.1, 500);
 
         const newFlipped = [...flippedCards, cardId];
         setFlippedCards(newFlipped);
@@ -98,9 +146,13 @@ function MemoryCards() {
         const secondCard = cards.find(c => c.id === second);
 
         if (firstCard.emoji === secondCard.emoji) {
+            setTimeout(() => playSound(SOUNDS.MATCH, 'triangle', 0.3), 100);
+
             setMatchedCards([...matchedCards, first, second]);
             setFlippedCards([]);
         } else {
+            setTimeout(() => playSound(SOUNDS.MISMATCH, 'sawtooth', 0.2), 300);
+
             setTimeout(() => {
                 setFlippedCards([]);
             }, 1000);
@@ -112,6 +164,7 @@ function MemoryCards() {
 
         const unmatchedCards = cards.filter(c => !matchedCards.includes(c.id));
         if (unmatchedCards.length < 2) return;
+        playSound(SOUNDS.HINT, 'sine', 0.5, 800);
 
         const emojiGroups = {};
         unmatchedCards.forEach(card => {
@@ -152,6 +205,9 @@ function MemoryCards() {
     useEffect(() => {
         if (difficulty && matchedCards.length === cards.length && cards.length > 0) {
             pauseTimer();
+            SOUNDS.WIN_NOTES.forEach((freq, i) => {
+                setTimeout(() => playSound(freq, 'triangle', 0.2), i * 150);
+            });
 
             const currentRecords = storageService.getRecords();
             const levelRecord = currentRecords.memoryCards[difficulty];

@@ -29,6 +29,16 @@ const PHASES = {
     RESULT: 'result'
 };
 
+const SOUNDS = {
+    TICK: 1000,
+    TYPE: 800,
+    START_RECALL: 600,
+    SUCCESS: [523.25, 659.25, 783.99],
+    ERROR: 150,
+    HINT: 1200,
+    GAME_OVER: 100
+};
+
 function WordRecall() {
     const navigate = useNavigate();
     const { accessibility } = useTheme();
@@ -48,6 +58,41 @@ function WordRecall() {
     const [usedWords, setUsedWords] = useState([]);
     const [hints, setHints] = useState(3);
     const inputRef = useRef(null);
+    const audioContextRef = useRef(null);
+
+    useEffect(() => {
+        if (accessibility.soundEnabled) {
+            audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        return () => {
+            if (audioContextRef.current) {
+                audioContextRef.current.close();
+            }
+        };
+    }, [accessibility.soundEnabled]);
+
+    const playSound = (frequency, type = 'sine', duration = 0.1) => {
+        if (!accessibility.soundEnabled || !audioContextRef.current) return;
+
+        try {
+            const oscillator = audioContextRef.current.createOscillator();
+            const gainNode = audioContextRef.current.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContextRef.current.destination);
+
+            oscillator.frequency.value = frequency;
+            oscillator.type = type;
+
+            gainNode.gain.setValueAtTime(0.05, audioContextRef.current.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioContextRef.current.currentTime + duration);
+
+            oscillator.start(audioContextRef.current.currentTime);
+            oscillator.stop(audioContextRef.current.currentTime + duration);
+        } catch (e) {
+            console.error("Audio playback error:", e);
+        }
+    };
 
     const getRandomWord = () => {
         const availableWords = WORDS.filter(w => !usedWords.includes(w));
@@ -96,11 +141,15 @@ function WordRecall() {
 
     useEffect(() => {
         if (phase === PHASES.DISPLAY && displayTime > 0) {
+            playSound(SOUNDS.TICK, 'sine', 0.05);
+
             const timer = setTimeout(() => {
                 setDisplayTime(displayTime - 1);
             }, 1000);
             return () => clearTimeout(timer);
         } else if (phase === PHASES.DISPLAY && displayTime === 0) {
+            playSound(SOUNDS.START_RECALL, 'triangle', 0.2);
+
             const masked = maskWord(currentWord);
             setMaskedWord(masked);
             setPhase(PHASES.RECALL);
@@ -116,6 +165,10 @@ function WordRecall() {
             setCorrectStreak(correctStreak + 1);
             setFeedback({ type: 'success', message: 'Правильно! 🎉' });
 
+            SOUNDS.SUCCESS.forEach((freq, i) => {
+                setTimeout(() => playSound(freq, 'sine', 0.2), i * 100);
+            });
+
             setTimeout(() => {
                 startRound();
             }, 1500);
@@ -125,6 +178,9 @@ function WordRecall() {
                 type: 'error',
                 message: `Неправильно. Слово було: ${currentWord}`
             });
+
+            playSound(SOUNDS.ERROR, 'sawtooth', 0.4);
+
             if (incorrectCount + 1 >= 3) {
                 setTimeout(() => {
                     finishGame();
@@ -139,6 +195,8 @@ function WordRecall() {
 
     const showHint = () => {
         if (hints <= 0) return;
+
+        playSound(SOUNDS.HINT, 'sine', 0.3);
 
         const missingIndices = maskedWord
             .split('')
@@ -156,6 +214,8 @@ function WordRecall() {
 
 
     const finishGame = () => {
+        playSound(SOUNDS.GAME_OVER, 'sawtooth', 0.8);
+
         const accuracy = totalAttempts > 0
             ? Math.round((correctStreak / totalAttempts) * 100)
             : 0;
@@ -189,6 +249,16 @@ function WordRecall() {
             color: isSuccess ? 'var(--accent-success)' : 'var(--accent-danger)',
             border: `1px solid ${isSuccess ? 'var(--accent-success)' : 'var(--accent-danger)'}`
         };
+    };
+
+    const handleInputChange = (e) => {
+        const newValue = e.target.value.toUpperCase();
+
+        if (newValue.length > userInput.length) {
+            playSound(SOUNDS.TYPE, 'square', 0.05);
+        }
+
+        setUserInput(newValue);
     };
 
     if (!gameStarted) {
@@ -274,7 +344,6 @@ function WordRecall() {
 
                     <Card padding="md" className="text-center">
                         <div className="text-2xl mb-1">❌</div>
-                        {/* Замінили text-danger */}
                         <div className="text-2xl font-bold" style={{ color: 'var(--accent-danger)' }}>
                             {incorrectCount}/3
                         </div>
@@ -319,7 +388,7 @@ function WordRecall() {
                                     ref={inputRef}
                                     type="text"
                                     value={userInput}
-                                    onChange={(e) => setUserInput(e.target.value.toUpperCase())}
+                                    onChange={handleInputChange}
                                     onKeyPress={(e) => e.key === 'Enter' && !feedback && checkAnswer()}
                                     placeholder="Введіть слово"
                                     className="
