@@ -7,6 +7,7 @@ import Profile from './pages/Profile';
 import Dashboard from './pages/Dashboard';
 import Leaderboard from './pages/Leaderboard';
 import Settings from './pages/Settings';
+import NotFound from './pages/NotFound';
 import MemoryCards from './games/MemoryCards/MemoryCards';
 import FocusClicker from './games/FocusClicker/FocusClicker';
 import NumberSequence from './games/NumberSequence/NumberSequence';
@@ -22,6 +23,7 @@ function App() {
             <ThemeProvider>
                 <ProfileProvider>
                     <Routes>
+                        {/* Ваші маршрути залишаються без змін */}
                         <Route path="/" element={<Home />} />
                         <Route path="/profile" element={<Profile />} />
                         <Route path="/dashboard" element={<Dashboard />} />
@@ -42,27 +44,4 @@ function App() {
         </Router>
     );
 }
-
-function NotFound() {
-    return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-            <div className="text-center">
-                <div className="text-9xl mb-4">🤔</div>
-                <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-                    Сторінка не знайдена
-                </h1>
-                <p className="text-gray-600 dark:text-gray-400 mb-8">
-                    На жаль, ця сторінка не існує
-                </p>
-                <a
-                    href="/"
-                    className="inline-block px-6 py-3 bg-primary text-white rounded-xl font-bold hover:bg-primary-dark transition-colors"
-                >
-                    Повернутися на головну
-                </a>
-            </div>
-        </div>
-    );
-}
-
 export default App;
