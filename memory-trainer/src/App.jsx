@@ -23,7 +23,6 @@ function App() {
             <ThemeProvider>
                 <ProfileProvider>
                     <Routes>
-                        {/* Ваші маршрути залишаються без змін */}
                         <Route path="/" element={<Home />} />
                         <Route path="/profile" element={<Profile />} />
                         <Route path="/dashboard" element={<Dashboard />} />

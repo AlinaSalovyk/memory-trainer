@@ -234,7 +234,7 @@ class AnalyticsService {
 
         return Object.entries(weeklyData).map(([date, sessions]) => ({
             date,
-            level: this.calculateMemoryLevel() // Спрощено - в реальності потрібно рахувати для кожної точки
+            level: this.calculateMemoryLevel()
         })).sort((a, b) => new Date(a.date) - new Date(b.date));
     }
 }
